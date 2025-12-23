@@ -1,0 +1,43 @@
+/* Badge Components */
+
+.badge-container {
+  display: inline-block;
+  margin-bottom: 24px;
+}
+
+.badge {
+  background-color: rgb(19, 19, 87);
+  color: var(--color-secondary);
+  padding: 8px 16px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  animation: breathe 3s infinite ease-in-out;
+}
+
+/* Soon Tag */
+.soon-tag {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--color-white);
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@media (max-width: 480px) {
+  .soon-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-left: 5px;
+    white-space: nowrap;
+  }
+}

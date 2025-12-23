@@ -1,0 +1,132 @@
+/* Card Components */
+
+/* Feature Box */
+.feature-box {
+  background-color: var(--color-card-bg);
+  color: #111;
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition-base);
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.feature-box:nth-child(1) { animation-delay: 0.5s; }
+.feature-box:nth-child(2) { animation-delay: 0.7s; }
+.feature-box:nth-child(3) { animation-delay: 0.9s; }
+
+.feature-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.feature-box h3 {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.feature-box p {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+
+/* Team Card */
+.team-card {
+  width: 260px;
+  background: #d9d9d9;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  overflow: hidden;
+  transition: 0.3s ease;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(40px) scale(0.95);
+}
+
+.team-card:hover {
+  transform: translateY(-8px) scale(1.1);
+  box-shadow: 0 0 25px rgba(0, 255, 170, 0.38);
+}
+
+.team-card img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+.team-info {
+  padding: 18px;
+  text-align: left;
+}
+
+.team-info h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: black;
+  margin-bottom: 6px;
+}
+
+.team-info p {
+  font-size: 16px;
+  color: black;
+}
+
+/* Penx Card (Featured Products) */
+.penx-card {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.04)
+  );
+  padding: var(--space-xl);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: var(--shadow-xl);
+  transition: all var(--transition-base);
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.penx-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.penx-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5),
+              0 0 60px rgba(71, 181, 255, 0.4);
+}
+
+.penx-card h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.penx-card p {
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+/* Icon Circle */
+.icon-circle {
+  width: 65px;
+  height: 65px;
+  background: linear-gradient(135deg, #1749ff, #091230);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 1.2rem;
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.2),
+              0 8px 18px rgba(0, 0, 0, 0.4), 
+              0 0 25px rgba(71, 181, 255, 0.4);
+  transition: 0.3s ease;
+}

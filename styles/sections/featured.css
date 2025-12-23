@@ -1,0 +1,157 @@
+.penx-featured {
+  padding: var(--space-3xl) var(--space-md);
+  color: var(--color-white);
+  overflow: hidden;
+}
+
+.penx-title {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-2xl);
+  background: linear-gradient(to right, #fff, #ddd);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 700;
+  text-align: center;
+}
+
+.penx-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2xl);
+  max-width: var(--container-xl);
+  margin: 0 auto;
+  align-items: center;
+}
+
+/* Image Section */
+.penx-image-box {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-xl) 0;
+}
+
+.glow-ring {
+  position: absolute;
+  width: clamp(250px, 60vw, 500px);
+  height: clamp(250px, 60vw, 500px);
+  background: radial-gradient(circle, rgba(77, 171, 255, 0.4), transparent 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.penx-img {
+  position: relative;
+  width: clamp(250px, 50vw, 450px);
+  height: auto;
+  z-index: 2;
+  filter: drop-shadow(0 4px 20px rgba(71, 181, 255, 0.4));
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+/* Content Section */
+.penx-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.icon-circle {
+  width: clamp(50px, 10vw, 70px);
+  height: clamp(50px, 10vw, 70px);
+  background: linear-gradient(135deg, #1749ff, #091230);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  margin-bottom: var(--space-md);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.2),
+              0 8px 18px rgba(0, 0, 0, 0.4),
+              0 0 25px rgba(71, 181, 255, 0.4);
+}
+
+.penx-card h3 {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-sm);
+  font-weight: 600;
+}
+
+.penx-card p {
+  font-size: var(--text-base);
+  line-height: 1.7;
+  opacity: 0.9;
+  margin-bottom: 0;
+}
+
+/* Desktop (1024px+) */
+@media (min-width: 1024px) {
+  .penx-container {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3xl);
+  }
+
+  .penx-image-box {
+    order: 1;
+  }
+
+  .penx-content {
+    order: 2;
+  }
+}
+
+/* Shockwave Effect */
+.shockwave-ring {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.shockwave-ring.blue {
+  border-color: #0a1a57;
+  box-shadow: 0 0 50px rgba(5, 24, 92, 0.8);
+}
+
+.image-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: filter 0.3s ease;
+}
+
+/* When image is clicked */
+.image-wrapper:active .penx-img {
+  filter: brightness(1.5) drop-shadow(0 0 30px #0e2205);
+}
+
+.penx-card.visible {
+  transition: transform 0.6s cubic-bezier(0.175, 0.85, 0.32, 1.275), opacity 0.6s ease; /* Make the cards react to the explosion */
+}

@@ -1,0 +1,110 @@
+/* Wallet Overview Section - Properly Responsive */
+
+.wallet-overview {
+  padding: var(--space-3xl) 0;
+  text-align: center;
+  color: var(--color-white);
+  overflow: hidden;
+}
+
+.wallet-overview h2 {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-2xl);
+  padding: 0 var(--space-md);
+}
+
+/* Mobile Slider */
+#wallet-slider {
+  display: flex;
+  gap: var(--space-md);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: var(--space-md);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+#wallet-slider::-webkit-scrollbar {
+  display: none;
+}
+
+#wallet-slider img {
+  width: clamp(200px, 70vw, 280px);
+  height: auto;
+  flex-shrink: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  scroll-snap-align: center;
+  transition: transform var(--transition-base);
+}
+
+#wallet-slider img:active {
+  transform: scale(0.98);
+}
+
+/* Dot Indicators */
+.wallet-dot-indicators {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-lg);
+  padding: 0 var(--space-md);
+}
+
+.wallet-dot-indicators .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.wallet-dot-indicators .dot:hover {
+  background-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.2);
+}
+
+.wallet-dot-indicators .dot.active {
+  background-color: var(--color-white);
+  transform: scale(1.3);
+}
+
+/* Desktop (1024px+) - Stack Layout */
+@media (min-width: 1024px) {
+  .wallet-dot-indicators {
+    display: none;
+  }
+
+  #wallet-slider {
+    overflow: visible;
+    justify-content: center;
+    padding: var(--space-2xl) var(--space-md);
+    gap: 0;
+  }
+
+  #wallet-slider img {
+    width: clamp(180px, 12vw, 220px);
+    margin-left: -40px;
+    transition: all var(--transition-base);
+    transform: scale(0.9);
+  }
+
+  #wallet-slider img:first-child {
+    margin-left: 0;
+  }
+
+  /* Center Image Highlighted */
+  #wallet-slider img:nth-child(3) {
+    transform: scale(1.15);
+    z-index: 10;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  #wallet-slider img:hover {
+    transform: scale(1.2);
+    z-index: 20;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  }
+}
