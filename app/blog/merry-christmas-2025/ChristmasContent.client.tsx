@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, Variants, AnimatePresence } from "framer-motion";
@@ -28,21 +28,27 @@ interface Heart {
 export default function ChristmasPage() {
   const postId = 9;
 
-  // FIX 1: Use lazy initialization to read from localStorage on mount
-  const [isLiked, setIsLiked] = useState<boolean>(() => {
-    const liked = localStorage.getItem(`blog_liked_${postId}`);
-    return liked === "true";
-  });
-
-  const [likeCount, setLikeCount] = useState<number>(() => {
-    const count = localStorage.getItem(`blog_likes_${postId}`);
-    return count ? parseInt(count, 10) : 0;
-  });
-
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const [heartIdCounter, setHeartIdCounter] = useState(0);
 
-  // FIX 3: Removed useEffect - no longer needed with lazy initialization
+  // ✅ SAFE localStorage access
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMounted(true);
+
+    const liked = localStorage.getItem(`blog_liked_${postId}`);
+    const count = localStorage.getItem(`blog_likes_${postId}`);
+
+    setIsLiked(liked === "true");
+    setLikeCount(count ? parseInt(count, 10) : 0);
+  }, [postId]);
+
+  if (!isMounted) {
+    return null; // prevents hydration mismatch
+  }
 
   const createHearts = () => {
     const newHearts: Heart[] = [];
@@ -70,7 +76,7 @@ export default function ChristmasPage() {
     }, 2500);
   };
 
-  const handleLike = (): void => {
+  const handleLike = () => {
     const newLikedState = !isLiked;
     const newCount = newLikedState ? likeCount + 1 : Math.max(0, likeCount - 1);
 
@@ -84,6 +90,10 @@ export default function ChristmasPage() {
       createHearts();
     }
   };
+
+  // 👇👇👇
+  // EVERYTHING BELOW THIS LINE (YOUR JSX/UI)
+  // STAYS EXACTLY THE SAME
 
   return (
     <main className="seo-article fade-up">
