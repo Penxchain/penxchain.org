@@ -6,8 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "PENXCHAIN",
     start_url: "/",
     display: "standalone",
-    background_color: "#000000",
-    theme_color: "#ffffff",
+    background_color: "#0b0b0b",
+    theme_color: "#000000",
     icons: [
       {
         src: "/img/penxchain.jpg",

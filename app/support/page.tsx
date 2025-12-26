@@ -158,7 +158,7 @@ export default function SupportPage() {
             icon={<Zap size={22} />}
             title="Dev Docs"
             sub="API Access"
-            href="https://docs.penxchain.com"
+            href="https://penxchain.org/docs"
           />
         </div>
       </section>

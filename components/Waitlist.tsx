@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 
 export default function Waitlist() {
-  const [userCount, setUserCount] = useState<number>(27);
+  const [userCount, setUserCount] = useState<number>(45);
   const [showNotification, setShowNotification] = useState<boolean>(false);
   const [showRetentionToast, setShowRetentionToast] = useState<boolean>(false);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
@@ -92,7 +92,7 @@ export default function Waitlist() {
 
         counterTimeoutRef.current = setTimeout(
           incrementCounter,
-          getRandomTime(1000, 3000)
+          getRandomTime(1000, 2000)
         );
 
         return next;

@@ -60,8 +60,12 @@ export default function PenxTokenUtilityContent() {
     setIsLiked(newLikedState);
     setLikeCount(newCount);
 
-    localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
-    localStorage.setItem(`blog_likes_${postId}`, String(newCount));
+    try {
+      localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
+      localStorage.setItem(`blog_likes_${postId}`, String(newCount));
+    } catch (error) {
+      console.error("Error writing to localStorage:", error);
+    }
 
     if (newLikedState) {
       createHearts();
@@ -95,9 +99,18 @@ export default function PenxTokenUtilityContent() {
   };
 
   return (
-    <main className="seo-article fade-up">
+    <main
+      className="seo-article fade-up"
+      style={{ width: "100%", overflow: "hidden" }}
+    >
       <div
-        style={{ maxWidth: "900px", margin: "0 auto 2rem", padding: "0 2rem" }}
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto 2rem",
+          padding: "0 1rem",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
       >
         <Link
           href="/blog"
@@ -127,7 +140,7 @@ export default function PenxTokenUtilityContent() {
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            style={{ width: "20px", height: "20px" }}
+            style={{ width: "20px", height: "20px", flexShrink: 0 }}
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
@@ -160,32 +173,42 @@ export default function PenxTokenUtilityContent() {
         }}
       />
 
-      <article>
+      <article style={{ width: "100%", boxSizing: "border-box" }}>
         <motion.section
           className="article-hero"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
           <div className="hero-text">
-            <h1>$PENX Token Utility</h1>
+            <h1 style={{ fontSize: "clamp(1.8rem, 5vw, 2.5rem)" }}>
+              $PENX Token Utility
+            </h1>
 
-            <p style={{ fontSize: "1.2rem" }}>
+            <p style={{ fontSize: "clamp(1rem, 2.5vw, 1.2rem)" }}>
               <strong>
                 What role does $PENX play in the PENXCHAIN ecosystem?
               </strong>
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               $PENX is the <strong>economic backbone of PENXCHAIN</strong>,
               designed to power privacy-first commerce, governance, and
               incentives.
             </p>
 
-            <div className="callout">
-              $PENX is not just a token. It&apos;s how users participate, merchants
-              grow, and governance stays community-driven.
+            <div
+              className="callout"
+              style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
+            >
+              $PENX is not just a token. It&apos;s how users participate,
+              merchants grow, and governance stays community-driven.
             </div>
           </div>
 
@@ -208,6 +231,12 @@ export default function PenxTokenUtilityContent() {
                 el.classList.add("breathe");
               }
             }}
+            style={{
+              width: "100%",
+              maxWidth: "680px",
+              margin: "0 auto",
+              touchAction: "manipulation",
+            }}
           >
             <Image
               src="/blog-images/penx-token-utility.jpg"
@@ -215,6 +244,7 @@ export default function PenxTokenUtilityContent() {
               width={680}
               height={420}
               priority
+              style={{ width: "100%", height: "auto", display: "block" }}
             />
           </div>
         </motion.section>
@@ -225,8 +255,19 @@ export default function PenxTokenUtilityContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={staggerContainer}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <h2 style={{ textAlign: "center", marginBottom: "3rem" }}>
+          <h2
+            style={{
+              textAlign: "center",
+              marginBottom: "3rem",
+              fontSize: "clamp(1.5rem, 4vw, 2rem)",
+            }}
+          >
             Core Utilities of $PENX
           </h2>
 
@@ -238,8 +279,10 @@ export default function PenxTokenUtilityContent() {
                 "linear-gradient(135deg, rgba(12, 229, 12, 0.1) 0%, rgba(12, 229, 12, 0.05) 100%)",
               border: "2px solid rgba(12, 229, 12, 0.3)",
               borderRadius: "16px",
-              padding: "2.5rem",
+              padding: "clamp(1.5rem, 4vw, 2.5rem)",
               marginBottom: "2rem",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <div
@@ -248,6 +291,7 @@ export default function PenxTokenUtilityContent() {
                 alignItems: "center",
                 gap: "1rem",
                 marginBottom: "1.5rem",
+                flexWrap: "wrap",
               }}
             >
               <div
@@ -260,6 +304,7 @@ export default function PenxTokenUtilityContent() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.5rem",
+                  flexShrink: 0,
                 }}
               >
                 🔒
@@ -268,14 +313,19 @@ export default function PenxTokenUtilityContent() {
                 style={{
                   margin: 0,
                   color: "#0ce50c",
-                  fontSize: "1.8rem",
+                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
                 }}
               >
                 Staking
               </h3>
             </div>
 
-            <p style={{ fontSize: "1.05rem", marginBottom: "1.5rem" }}>
+            <p
+              style={{
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
+                marginBottom: "1.5rem",
+              }}
+            >
               $PENX holders can stake their tokens to participate in securing
               the network and earning rewards.
             </p>
@@ -285,12 +335,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ fontWeight: "600", marginBottom: "1rem" }}>
+              <p
+                style={{
+                  fontWeight: "600",
+                  marginBottom: "1rem",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Staking Benefits:
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.5rem",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 <li style={{ marginBottom: "0.5rem" }}>
                   <strong>Earn protocol rewards</strong> – Get rewarded for
                   supporting the ecosystem
@@ -310,7 +374,7 @@ export default function PenxTokenUtilityContent() {
               style={{
                 marginTop: "1.5rem",
                 marginBottom: 0,
-                fontSize: "1.05rem",
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
                 fontStyle: "italic",
                 opacity: 0.9,
               }}
@@ -327,8 +391,10 @@ export default function PenxTokenUtilityContent() {
                 "linear-gradient(135deg, rgba(0, 122, 255, 0.1) 0%, rgba(0, 122, 255, 0.05) 100%)",
               border: "2px solid rgba(0, 122, 255, 0.3)",
               borderRadius: "16px",
-              padding: "2.5rem",
+              padding: "clamp(1.5rem, 4vw, 2.5rem)",
               marginBottom: "2rem",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <div
@@ -337,6 +403,7 @@ export default function PenxTokenUtilityContent() {
                 alignItems: "center",
                 gap: "1rem",
                 marginBottom: "1.5rem",
+                flexWrap: "wrap",
               }}
             >
               <div
@@ -349,6 +416,7 @@ export default function PenxTokenUtilityContent() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.5rem",
+                  flexShrink: 0,
                 }}
               >
                 🗳️
@@ -357,14 +425,19 @@ export default function PenxTokenUtilityContent() {
                 style={{
                   margin: 0,
                   color: "#007aff",
-                  fontSize: "1.8rem",
+                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
                 }}
               >
                 Governance (PENXDAO)
               </h3>
             </div>
 
-            <p style={{ fontSize: "1.05rem", marginBottom: "1.5rem" }}>
+            <p
+              style={{
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
+                marginBottom: "1.5rem",
+              }}
+            >
               $PENX gives holders <strong>direct influence</strong> over the
               ecosystem&apos;s future direction.
             </p>
@@ -374,12 +447,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ fontWeight: "600", marginBottom: "1rem" }}>
+              <p
+                style={{
+                  fontWeight: "600",
+                  marginBottom: "1rem",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Token holders can vote on:
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.5rem",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 <li style={{ marginBottom: "0.5rem" }}>
                   <strong>Protocol upgrades</strong> – Shape technical
                   improvements
@@ -402,7 +489,7 @@ export default function PenxTokenUtilityContent() {
               style={{
                 marginTop: "1.5rem",
                 marginBottom: 0,
-                fontSize: "1.05rem",
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
                 fontStyle: "italic",
                 opacity: 0.9,
               }}
@@ -420,8 +507,10 @@ export default function PenxTokenUtilityContent() {
                 "linear-gradient(135deg, rgba(255, 159, 10, 0.1) 0%, rgba(255, 159, 10, 0.05) 100%)",
               border: "2px solid rgba(255, 159, 10, 0.3)",
               borderRadius: "16px",
-              padding: "2.5rem",
+              padding: "clamp(1.5rem, 4vw, 2.5rem)",
               marginBottom: "2rem",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <div
@@ -430,6 +519,7 @@ export default function PenxTokenUtilityContent() {
                 alignItems: "center",
                 gap: "1rem",
                 marginBottom: "1.5rem",
+                flexWrap: "wrap",
               }}
             >
               <div
@@ -442,6 +532,7 @@ export default function PenxTokenUtilityContent() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.5rem",
+                  flexShrink: 0,
                 }}
               >
                 💳
@@ -450,14 +541,19 @@ export default function PenxTokenUtilityContent() {
                 style={{
                   margin: 0,
                   color: "#ff9f0a",
-                  fontSize: "1.8rem",
+                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
                 }}
               >
                 Fees & Payments
               </h3>
             </div>
 
-            <p style={{ fontSize: "1.05rem", marginBottom: "1.5rem" }}>
+            <p
+              style={{
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
+                marginBottom: "1.5rem",
+              }}
+            >
               $PENX is the primary payment method across PENXCHAIN services.
             </p>
 
@@ -466,12 +562,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ fontWeight: "600", marginBottom: "1rem" }}>
+              <p
+                style={{
+                  fontWeight: "600",
+                  marginBottom: "1rem",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 $PENX is used for:
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.5rem",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 <li style={{ marginBottom: "0.5rem" }}>
                   <strong>Wallet services</strong> – Access advanced features
                 </li>
@@ -493,9 +603,17 @@ export default function PenxTokenUtilityContent() {
                 border: "1px solid rgba(255, 159, 10, 0.3)",
                 borderRadius: "8px",
                 padding: "1rem 1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ margin: 0, fontWeight: "600" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontWeight: "600",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 💡 Pro Tip: Using $PENX unlocks{" "}
                 <strong>lower fees across the entire ecosystem</strong>.
               </p>
@@ -510,8 +628,10 @@ export default function PenxTokenUtilityContent() {
                 "linear-gradient(135deg, rgba(94, 92, 230, 0.1) 0%, rgba(94, 92, 230, 0.05) 100%)",
               border: "2px solid rgba(94, 92, 230, 0.3)",
               borderRadius: "16px",
-              padding: "2.5rem",
+              padding: "clamp(1.5rem, 4vw, 2.5rem)",
               marginBottom: "2rem",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <div
@@ -520,6 +640,7 @@ export default function PenxTokenUtilityContent() {
                 alignItems: "center",
                 gap: "1rem",
                 marginBottom: "1.5rem",
+                flexWrap: "wrap",
               }}
             >
               <div
@@ -532,6 +653,7 @@ export default function PenxTokenUtilityContent() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.5rem",
+                  flexShrink: 0,
                 }}
               >
                 💧
@@ -540,14 +662,19 @@ export default function PenxTokenUtilityContent() {
                 style={{
                   margin: 0,
                   color: "#5e5ce6",
-                  fontSize: "1.8rem",
+                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
                 }}
               >
                 Liquidity & LP Rewards
               </h3>
             </div>
 
-            <p style={{ fontSize: "1.05rem", marginBottom: "1.5rem" }}>
+            <p
+              style={{
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
+                marginBottom: "1.5rem",
+              }}
+            >
               Liquidity providers earn rewards by supporting healthy markets for
               $PENX.
             </p>
@@ -557,12 +684,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ fontWeight: "600", marginBottom: "1rem" }}>
+              <p
+                style={{
+                  fontWeight: "600",
+                  marginBottom: "1rem",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 This ensures:
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.5rem",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 <li style={{ marginBottom: "0.5rem" }}>
                   <strong>Deep liquidity</strong> – Easy to buy and sell without
                   slippage
@@ -582,7 +723,7 @@ export default function PenxTokenUtilityContent() {
               style={{
                 marginTop: "1.5rem",
                 marginBottom: 0,
-                fontSize: "1.05rem",
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
                 opacity: 0.9,
               }}
             >
@@ -599,8 +740,10 @@ export default function PenxTokenUtilityContent() {
                 "linear-gradient(135deg, rgba(255, 55, 95, 0.1) 0%, rgba(255, 55, 95, 0.05) 100%)",
               border: "2px solid rgba(255, 55, 95, 0.3)",
               borderRadius: "16px",
-              padding: "2.5rem",
+              padding: "clamp(1.5rem, 4vw, 2.5rem)",
               marginBottom: "2rem",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <div
@@ -609,6 +752,7 @@ export default function PenxTokenUtilityContent() {
                 alignItems: "center",
                 gap: "1rem",
                 marginBottom: "1.5rem",
+                flexWrap: "wrap",
               }}
             >
               <div
@@ -621,6 +765,7 @@ export default function PenxTokenUtilityContent() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.5rem",
+                  flexShrink: 0,
                 }}
               >
                 🏪
@@ -629,14 +774,19 @@ export default function PenxTokenUtilityContent() {
                 style={{
                   margin: 0,
                   color: "#ff375f",
-                  fontSize: "1.8rem",
+                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
                 }}
               >
                 Marketplace & Merchant Perks
               </h3>
             </div>
 
-            <p style={{ fontSize: "1.05rem", marginBottom: "1.5rem" }}>
+            <p
+              style={{
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
+                marginBottom: "1.5rem",
+              }}
+            >
               Holding or using $PENX unlocks exclusive benefits for merchants
               and active users.
             </p>
@@ -646,12 +796,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ fontWeight: "600", marginBottom: "1rem" }}>
+              <p
+                style={{
+                  fontWeight: "600",
+                  marginBottom: "1rem",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Benefits include:
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.5rem",
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 <li style={{ marginBottom: "0.5rem" }}>
                   <strong>Reduced merchant fees</strong> – Keep more of your
                   revenue
@@ -675,7 +839,7 @@ export default function PenxTokenUtilityContent() {
               style={{
                 marginTop: "1.5rem",
                 marginBottom: 0,
-                fontSize: "1.05rem",
+                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
                 fontStyle: "italic",
                 opacity: 0.9,
               }}
@@ -692,10 +856,17 @@ export default function PenxTokenUtilityContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <h2>Private Commerce with pPENX</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            Private Commerce with pPENX
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Inside <strong>Aleo</strong>, the wrapped version{" "}
             <strong>pPENX</strong> enables fully private commerce.
           </p>
@@ -705,26 +876,38 @@ export default function PenxTokenUtilityContent() {
               background: "rgba(12, 229, 12, 0.05)",
               border: "2px solid rgba(12, 229, 12, 0.2)",
               borderRadius: "16px",
-              padding: "2rem",
+              padding: "clamp(1.5rem, 4vw, 2rem)",
               margin: "2rem 0",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            <h3 style={{ marginTop: 0, color: "#0ce50c" }}>What is pPENX?</h3>
-            <p>
+            <h3
+              style={{
+                marginTop: 0,
+                color: "#0ce50c",
+                fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
+              }}
+            >
+              What is pPENX?
+            </h3>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               pPENX is a privacy-wrapped version of $PENX that operates on the
               Aleo blockchain using zero-knowledge proofs.
             </p>
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               When you use pPENX, your transactions are completely confidential.
               Nobody can see:
             </p>
-            <ul>
+            <ul style={{ fontSize: "clamp(0.85rem, 1.8vw, 1rem)" }}>
               <li>How much you paid</li>
               <li>Who you paid</li>
               <li>What you bought</li>
               <li>Your wallet balance</li>
             </ul>
-            <p style={{ marginBottom: 0 }}>
+            <p
+              style={{ marginBottom: 0, fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
+            >
               This makes pPENX ideal for{" "}
               <strong>private marketplace purchases</strong>,{" "}
               <strong>confidential payments</strong>, and{" "}
@@ -732,7 +915,7 @@ export default function PenxTokenUtilityContent() {
             </p>
           </div>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             The combination of $PENX on Base (for liquidity) and pPENX on Aleo
             (for privacy) gives users the best of both worlds.
           </p>
@@ -749,17 +932,26 @@ export default function PenxTokenUtilityContent() {
               "linear-gradient(135deg, rgba(12, 229, 12, 0.1) 0%, rgba(0, 122, 255, 0.1) 100%)",
             border: "2px solid rgba(12, 229, 12, 0.3)",
             borderRadius: "16px",
-            padding: "3rem 2rem",
+            padding: "clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2rem)",
             textAlign: "center",
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "0 1rem",
+            maxWidth: "calc(100% - 2rem)",
           }}
         >
-          <h2 style={{ fontSize: "2rem", marginTop: 0 }}>
+          <h2
+            style={{
+              fontSize: "clamp(1.5rem, 4vw, 2rem)",
+              marginTop: 0,
+            }}
+          >
             $PENX: More Than Just a Token
           </h2>
 
           <p
             style={{
-              fontSize: "1.15rem",
+              fontSize: "clamp(0.95rem, 2.2vw, 1.15rem)",
               maxWidth: "700px",
               margin: "0 auto 2rem",
             }}
@@ -783,12 +975,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: "600" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
+                  fontWeight: "600",
+                }}
+              >
                 🙋 For Users
               </p>
-              <p style={{ margin: "0.5rem 0 0", opacity: 0.9 }}>
+              <p
+                style={{
+                  margin: "0.5rem 0 0",
+                  opacity: 0.9,
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 Participate in governance and earn rewards
               </p>
             </div>
@@ -798,12 +1004,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: "600" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
+                  fontWeight: "600",
+                }}
+              >
                 🏪 For Merchants
               </p>
-              <p style={{ margin: "0.5rem 0 0", opacity: 0.9 }}>
+              <p
+                style={{
+                  margin: "0.5rem 0 0",
+                  opacity: 0.9,
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 Grow businesses with lower fees and better tools
               </p>
             </div>
@@ -813,12 +1033,26 @@ export default function PenxTokenUtilityContent() {
                 background: "rgba(0, 0, 0, 0.3)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: "600" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
+                  fontWeight: "600",
+                }}
+              >
                 🤝 For the Community
               </p>
-              <p style={{ margin: "0.5rem 0 0", opacity: 0.9 }}>
+              <p
+                style={{
+                  margin: "0.5rem 0 0",
+                  opacity: 0.9,
+                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
+                }}
+              >
                 Keep governance decentralized and community-driven
               </p>
             </div>
@@ -826,7 +1060,7 @@ export default function PenxTokenUtilityContent() {
 
           <p
             style={{
-              fontSize: "1.2rem",
+              fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
               fontWeight: "600",
               marginTop: "2.5rem",
               marginBottom: 0,
@@ -841,8 +1075,10 @@ export default function PenxTokenUtilityContent() {
           style={{
             maxWidth: "300px",
             margin: "0 auto 2rem",
-            padding: "0 2rem",
+            padding: "0 1rem",
             position: "relative",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -855,6 +1091,7 @@ export default function PenxTokenUtilityContent() {
               background: "rgba(255, 255, 255, 0.03)",
               borderRadius: "16px",
               border: "1px solid rgba(255, 255, 255, 0.05)",
+              flexWrap: "wrap",
             }}
           >
             <button
@@ -872,12 +1109,14 @@ export default function PenxTokenUtilityContent() {
                 padding: "0.75rem 1.5rem",
                 borderRadius: "50px",
                 color: isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.7)",
-                fontSize: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
                 fontWeight: "600",
                 cursor: "pointer",
                 transition: "all 0.3s ease",
                 position: "relative",
                 overflow: "visible",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
               onMouseEnter={(e) => {
                 if (!isLiked) {
@@ -903,14 +1142,18 @@ export default function PenxTokenUtilityContent() {
                 fill={isLiked ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth="2"
-                style={{ width: "24px", height: "24px" }}
+                style={{ width: "24px", height: "24px", flexShrink: 0 }}
               >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
               {likeCount > 0 && <span>{likeCount}</span>}
             </button>
             <span
-              style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.9rem" }}
+              style={{
+                color: "rgba(255, 255, 255, 0.6)",
+                fontSize: "clamp(0.8rem, 1.8vw, 0.9rem)",
+                textAlign: "center",
+              }}
             >
               {isLiked ? "You liked this" : "Like this post"}
             </span>
@@ -946,6 +1189,7 @@ export default function PenxTokenUtilityContent() {
                   left: "50%",
                   pointerEvents: "none",
                   zIndex: 1000,
+                  willChange: "transform, opacity",
                 }}
               >
                 <svg

@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, Variants, AnimatePresence } from "framer-motion";
@@ -42,20 +42,29 @@ interface Heart {
 export default function EcosystemTeaserPage() {
   const postId = 8;
 
-  const [isLiked, setIsLiked] = useState<boolean>(false);
-  const [likeCount, setLikeCount] = useState<number>(0);
+  // FIX 1: Initialize state with lazy function that safely reads localStorage
+  const [isLiked, setIsLiked] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const liked = localStorage.getItem(`blog_liked_${postId}`);
+      return liked === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const [likeCount, setLikeCount] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const count = localStorage.getItem(`blog_likes_${postId}`);
+      return count ? parseInt(count, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
   const [hearts, setHearts] = useState<Heart[]>([]);
   const [heartIdCounter, setHeartIdCounter] = useState(0);
-
-  useEffect(() => {
-    const liked = localStorage.getItem(`blog_liked_${postId}`);
-    const count = localStorage.getItem(`blog_likes_${postId}`);
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (liked) setIsLiked(liked === "true");
-    if (count) setLikeCount(parseInt(count, 10));
-     
-  }, []);
 
   const createHearts = () => {
     const newHearts: Heart[] = [];
@@ -90,8 +99,12 @@ export default function EcosystemTeaserPage() {
     setIsLiked(newLikedState);
     setLikeCount(newCount);
 
-    localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
-    localStorage.setItem(`blog_likes_${postId}`, String(newCount));
+    try {
+      localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
+      localStorage.setItem(`blog_likes_${postId}`, String(newCount));
+    } catch (error) {
+      console.error("Error writing to localStorage:", error);
+    }
 
     if (newLikedState) {
       createHearts();
@@ -99,9 +112,18 @@ export default function EcosystemTeaserPage() {
   };
 
   return (
-    <main className="seo-article fade-up">
+    <main
+      className="seo-article fade-up"
+      style={{ width: "100%", overflow: "hidden" }}
+    >
       <div
-        style={{ maxWidth: "900px", margin: "0 auto 2rem", padding: "0 2rem" }}
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto 2rem",
+          padding: "0 1rem",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
       >
         <Link
           href="/blog"
@@ -131,7 +153,7 @@ export default function EcosystemTeaserPage() {
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            style={{ width: "20px", height: "20px" }}
+            style={{ width: "20px", height: "20px", flexShrink: 0 }}
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
@@ -199,7 +221,7 @@ export default function EcosystemTeaserPage() {
         }}
       />
 
-      <article>
+      <article style={{ width: "100%", boxSizing: "border-box" }}>
         {/* HERO SECTION WITH CENTERED BADGE */}
         <motion.section
           className="article-hero"
@@ -207,7 +229,12 @@ export default function EcosystemTeaserPage() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeInSlideUp}
-          style={{ textAlign: "center", paddingBottom: "1rem" }}
+          style={{
+            textAlign: "center",
+            paddingBottom: "1rem",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
         >
           <motion.div
             variants={pulseAnimation}
@@ -228,21 +255,34 @@ export default function EcosystemTeaserPage() {
             Coming Soon
           </motion.div>
 
-          <div className="hero-text">
-            <h1>The Full PENXCHAIN Ecosystem Overview Is Almost Here</h1>
+          <div className="hero-text" style={{ padding: "0 1rem" }}>
+            <h1
+              style={{
+                fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
+                lineHeight: "1.2",
+                marginBottom: "1rem",
+              }}
+            >
+              The Full PENXCHAIN Ecosystem Overview Is Almost Here
+            </h1>
 
-            <p style={{ fontSize: "1.2rem", marginTop: "1.5rem" }}>
+            <p
+              style={{
+                fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
+                marginTop: "1.5rem",
+              }}
+            >
               <strong>We're revealing everything.</strong>
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               In the coming days, we will release a comprehensive overview of
               the PENXCHAIN ecosystem—the complete architecture, product suite,
               technical infrastructure, and strategic vision that makes private,
               scalable commerce possible.
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               This is the deep dive that explains how we're building what many
               considered too difficult to achieve.
             </p>
@@ -256,9 +296,10 @@ export default function EcosystemTeaserPage() {
           viewport={{ once: true, amount: 0.3 }}
           variants={fadeInSlideUp}
           style={{
-            maxWidth: "100%",
+            width: "100%",
             margin: "3rem 0",
-            padding: "0",
+            padding: "0 1rem",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -286,6 +327,7 @@ export default function EcosystemTeaserPage() {
               margin: "0 auto",
               borderRadius: "16px",
               overflow: "hidden",
+              touchAction: "manipulation",
             }}
           >
             <Image
@@ -294,7 +336,11 @@ export default function EcosystemTeaserPage() {
               width={1200}
               height={600}
               priority
-              style={{ width: "100%", height: "auto" }}
+              style={{
+                width: "100%",
+                height: "auto",
+                display: "block",
+              }}
             />
           </div>
         </motion.section>
@@ -306,11 +352,19 @@ export default function EcosystemTeaserPage() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
-          style={{ maxWidth: "900px", margin: "0 auto", padding: "0 2rem" }}
+          style={{
+            maxWidth: "900px",
+            margin: "0 auto",
+            padding: "0 1rem",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
         >
-          <h2>What to Expect</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            What to Expect
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             This overview will help users, communities, and brands understand
             why we chose the hybrid possibilities of Base and Aleo—and how this
             architecture enables capabilities that single-chain solutions cannot
@@ -320,54 +374,89 @@ export default function EcosystemTeaserPage() {
           <div
             style={{
               marginTop: "2rem",
-              padding: "2rem",
+              padding: "1.5rem",
               background: "rgba(255, 255, 255, 0.03)",
               borderRadius: "12px",
               border: "1px solid rgba(255, 255, 255, 0.1)",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            <h3 style={{ color: "#0ce50c", marginBottom: "1rem" }}>
+            <h3
+              style={{
+                color: "#0ce50c",
+                marginBottom: "1rem",
+                fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
+              }}
+            >
               The ecosystem overview will cover:
             </h3>
 
-            <p style={{ marginBottom: "1rem" }}>
+            <p
+              style={{
+                marginBottom: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>Product Architecture:</strong> How PENXCHAIN Wallet,
               PENXPAY, and the Marketplace work together as a unified system
               rather than isolated applications.
             </p>
 
-            <p style={{ marginBottom: "1rem" }}>
+            <p
+              style={{
+                marginBottom: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>Hybrid Infrastructure:</strong> The technical design that
               connects Aleo's zero-knowledge privacy with Base's liquidity, and
               why both chains are essential to the vision.
             </p>
 
-            <p style={{ marginBottom: "1rem" }}>
+            <p
+              style={{
+                marginBottom: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>Privacy Technology:</strong> Deep dive into how
               zero-knowledge proofs protect users and merchants without
               sacrificing verifiability or functionality.
             </p>
 
-            <p style={{ marginBottom: "1rem" }}>
+            <p
+              style={{
+                marginBottom: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>Token Economics:</strong> The role of $PENX in the
               ecosystem, distribution strategy, utility across products, and
               long-term value capture.
             </p>
 
-            <p style={{ marginBottom: "1rem" }}>
+            <p
+              style={{
+                marginBottom: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>Market Positioning:</strong> Why PENXCHAIN is uniquely
               positioned to capture the privacy-powered commerce market that
               other platforms cannot serve.
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               <strong>Roadmap and Vision:</strong> Where we are now, what's
               coming next, and the long-term strategy for scaling private
               digital commerce globally.
             </p>
           </div>
 
-          <p style={{ marginTop: "2rem" }}>
+          <p
+            style={{ marginTop: "2rem", fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
+          >
             This is not marketing material. This is the blueprint for how
             PENXCHAIN delivers on the promise of private, accessible, and
             functional blockchain commerce.
@@ -381,32 +470,40 @@ export default function EcosystemTeaserPage() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
-          style={{ maxWidth: "900px", margin: "0 auto", padding: "0 2rem" }}
+          style={{
+            maxWidth: "900px",
+            margin: "0 auto",
+            padding: "0 1rem",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
         >
-          <h2>Why Hybrid Was Necessary</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            Why Hybrid Was Necessary
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Many teams have attempted to build privacy-first commerce. Most
             failed because they chose a single chain and forced it to do
             everything—sacrificing either privacy, liquidity, usability, or
             scalability in the process.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             PENXCHAIN recognized early that no single blockchain could deliver
             everything users need. Privacy chains offer confidentiality but
             struggle with adoption. Public chains offer liquidity but expose
             everything.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             The hybrid model solves this by using each chain for what it does
             best. Aleo provides zero-knowledge infrastructure for private
             execution. Base provides liquidity, composability, and market
             access. Together, they enable what neither can achieve alone.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             The upcoming overview will explain this architecture in detail,
             showing exactly how PENXCHAIN routes operations across chains,
             maintains security, and abstracts complexity for users.
@@ -420,11 +517,19 @@ export default function EcosystemTeaserPage() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
-          style={{ maxWidth: "900px", margin: "0 auto", padding: "0 2rem" }}
+          style={{
+            maxWidth: "900px",
+            margin: "0 auto",
+            padding: "0 1rem",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
         >
-          <h2>Building on the Shoulders of Giants</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            Building on the Shoulders of Giants
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             PENXCHAIN exists because of the groundbreaking work done by teams at
             Base and Aleo. Their technical innovations made it possible for us
             to build what we're building.
@@ -433,13 +538,20 @@ export default function EcosystemTeaserPage() {
           <div
             style={{
               marginTop: "2rem",
-              padding: "2rem",
+              padding: "1.5rem",
               background: "rgba(12, 229, 12, 0.05)",
               borderRadius: "12px",
               border: "1px solid rgba(12, 229, 12, 0.2)",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            <p style={{ marginBottom: "1rem" }}>
+            <p
+              style={{
+                marginBottom: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>Thank you to Jesse Pollak and the Base team</strong> for
               building a Layer 2 that prioritizes usability, developer
               experience, and real-world adoption. Base's infrastructure gives
@@ -447,7 +559,7 @@ export default function EcosystemTeaserPage() {
               mainstream users.
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               <strong>Thank you to Howard Wu and the Aleo team</strong> for
               pioneering zero-knowledge technology that makes privacy practical
               at scale. Aleo's architecture is the foundation of PENXCHAIN's
@@ -455,7 +567,9 @@ export default function EcosystemTeaserPage() {
             </p>
           </div>
 
-          <p style={{ marginTop: "2rem" }}>
+          <p
+            style={{ marginTop: "2rem", fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
+          >
             Without their work, PENXCHAIN would not be possible. The hybrid
             model we're building stands on the technical achievements they've
             delivered to the blockchain ecosystem.
@@ -469,31 +583,47 @@ export default function EcosystemTeaserPage() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
-          style={{ maxWidth: "900px", margin: "0 auto", padding: "0 2rem" }}
+          style={{
+            maxWidth: "900px",
+            margin: "0 auto",
+            padding: "0 1rem",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
         >
-          <h2>What Comes Next</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            What Comes Next
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             The full ecosystem overview will be released in the coming days. It
             will answer the questions we've been asked repeatedly: How does
             PENXCHAIN work? Why hybrid? What's the roadmap? How does $PENX fit
             into the ecosystem?
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             This is the document that users, communities, brands, developers,
             and partners have been waiting for. It's comprehensive, technical,
             and honest—no hype, just the architecture and strategy that makes
             PENXCHAIN viable.
           </p>
 
-          <div className="callout" style={{ marginTop: "2rem" }}>
+          <div
+            className="callout"
+            style={{
+              marginTop: "2rem",
+              fontSize: "clamp(0.9rem, 2vw, 1rem)",
+            }}
+          >
             <strong>Stay tuned.</strong> Follow our social channels, join the
             community, and watch for the announcement. The full ecosystem
             overview is almost here.
           </div>
 
-          <p style={{ marginTop: "2rem" }}>
+          <p
+            style={{ marginTop: "2rem", fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
+          >
             In the meantime, explore how PENXCHAIN is already operational. Try
             the{" "}
             <Link href="/penxchain-wallet" style={{ color: "#00bfff" }}>
@@ -515,16 +645,13 @@ export default function EcosystemTeaserPage() {
               hybrid architecture
             </Link>{" "}
             and{" "}
-            <Link
-              href="/blog/zkp-penxchain"
-              style={{ color: "#00bfff" }}
-            >
+            <Link href="/blog/zkp-penxchain" style={{ color: "#00bfff" }}>
               zero-knowledge technology
             </Link>
             .
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             PENXCHAIN is not coming. It's here. The ecosystem overview will show
             you how all the pieces fit together.
           </p>
@@ -539,29 +666,38 @@ export default function EcosystemTeaserPage() {
           style={{
             maxWidth: "700px",
             margin: "3rem auto",
-            padding: "0 2rem",
+            padding: "0 1rem",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <div
             style={{
-              padding: "3rem 2rem",
+              padding: "2rem 1.5rem",
               background:
                 "linear-gradient(135deg, rgba(12, 229, 12, 0.1), rgba(0, 191, 255, 0.1))",
               borderRadius: "16px",
               border: "2px solid rgba(12, 200, 12, 0.3)",
               textAlign: "center",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <h3
               style={{
                 color: "#0ce50c",
-                fontSize: "1.5rem",
+                fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
                 marginBottom: "1rem",
               }}
             >
               Be the First to Know
             </h3>
-            <p style={{ marginBottom: "1.5rem", fontSize: "1.1rem" }}>
+            <p
+              style={{
+                marginBottom: "1.5rem",
+                fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
+              }}
+            >
               The full ecosystem overview is coming. Don't miss it.
             </p>
             <div
@@ -584,6 +720,8 @@ export default function EcosystemTeaserPage() {
                   fontWeight: "600",
                   textDecoration: "none",
                   transition: "all 0.3s ease",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                  touchAction: "manipulation",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "#0af00a";
@@ -609,6 +747,8 @@ export default function EcosystemTeaserPage() {
                   fontWeight: "600",
                   textDecoration: "none",
                   transition: "all 0.3s ease",
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                  touchAction: "manipulation",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "rgba(12, 229, 12, 0.1)";
@@ -630,8 +770,10 @@ export default function EcosystemTeaserPage() {
           style={{
             maxWidth: "300px",
             margin: "0 auto 2rem",
-            padding: "0 2rem",
+            padding: "0 1rem",
             position: "relative",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -644,6 +786,7 @@ export default function EcosystemTeaserPage() {
               background: "rgba(255, 255, 255, 0.03)",
               borderRadius: "16px",
               border: "1px solid rgba(255, 255, 255, 0.05)",
+              flexWrap: "wrap",
             }}
           >
             <button
@@ -661,12 +804,14 @@ export default function EcosystemTeaserPage() {
                 padding: "0.75rem 1.5rem",
                 borderRadius: "50px",
                 color: isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.7)",
-                fontSize: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
                 fontWeight: "600",
                 cursor: "pointer",
                 transition: "all 0.3s ease",
                 position: "relative",
                 overflow: "visible",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
               onMouseEnter={(e) => {
                 if (!isLiked) {
@@ -692,14 +837,18 @@ export default function EcosystemTeaserPage() {
                 fill={isLiked ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth="2"
-                style={{ width: "24px", height: "24px" }}
+                style={{ width: "24px", height: "24px", flexShrink: 0 }}
               >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
               {likeCount > 0 && <span>{likeCount}</span>}
             </button>
             <span
-              style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.9rem" }}
+              style={{
+                color: "rgba(255, 255, 255, 0.6)",
+                fontSize: "clamp(0.8rem, 1.8vw, 0.9rem)",
+                textAlign: "center",
+              }}
             >
               {isLiked ? "You liked this" : "Like this post"}
             </span>
@@ -736,6 +885,7 @@ export default function EcosystemTeaserPage() {
                   left: "50%",
                   pointerEvents: "none",
                   zIndex: 1000,
+                  willChange: "transform, opacity",
                 }}
               >
                 <svg

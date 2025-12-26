@@ -60,8 +60,12 @@ export default function WhyPenxchainContent() {
     setIsLiked(newLikedState);
     setLikeCount(newCount);
 
-    localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
-    localStorage.setItem(`blog_likes_${postId}`, String(newCount));
+    try {
+      localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
+      localStorage.setItem(`blog_likes_${postId}`, String(newCount));
+    } catch (error) {
+      console.error("Error writing to localStorage:", error);
+    }
 
     if (newLikedState) {
       createHearts();
@@ -95,9 +99,18 @@ export default function WhyPenxchainContent() {
   };
 
   return (
-    <main className="seo-article fade-up">
+    <main
+      className="seo-article fade-up"
+      style={{ width: "100%", overflow: "hidden" }}
+    >
       <div
-        style={{ maxWidth: "900px", margin: "0 auto 2rem", padding: "0 2rem" }}
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto 2rem",
+          padding: "0 1rem",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
       >
         <Link
           href="/blog"
@@ -127,7 +140,7 @@ export default function WhyPenxchainContent() {
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            style={{ width: "20px", height: "20px" }}
+            style={{ width: "20px", height: "20px", flexShrink: 0 }}
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
@@ -161,29 +174,36 @@ export default function WhyPenxchainContent() {
         }}
       />
 
-      <article>
+      <article style={{ width: "100%", boxSizing: "border-box" }}>
         <motion.section
           className="article-hero"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
           <div className="hero-text">
-            <h1>Why PENXCHAIN Exists</h1>
+            <h1 style={{ fontSize: "clamp(1.8rem, 5vw, 2.5rem)" }}>
+              Why PENXCHAIN Exists
+            </h1>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               Blockchain promised <strong>freedom</strong>,{" "}
               <strong>transparency</strong>, and <strong>global access</strong>.
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               But for most people, the experience today is{" "}
               <strong>fragmented</strong>, <strong>exposed</strong>, and{" "}
               <strong>difficult to use</strong>.
             </p>
 
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               <strong>PENXCHAIN exists to fix that.</strong>
             </p>
           </div>
@@ -195,26 +215,33 @@ export default function WhyPenxchainContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <h2>Problem #1: Fragmented User Experiences</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            Problem #1: Fragmented User Experiences
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Users are forced to juggle multiple apps: wallets, bridges,
             marketplaces, payment tools. Each with different rules, risks, and
             learning curves.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             <strong>This complexity blocks real adoption.</strong>
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Merchants face the same issue. Selling online often means relying on
             multiple platforms, paying high fees, and losing control over
             customer data.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             There is no unified, user-first commerce infrastructure that just
             works.
           </p>
@@ -226,9 +253,17 @@ export default function WhyPenxchainContent() {
               borderRadius: "12px",
               padding: "1.5rem",
               margin: "2rem 0",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            <p style={{ margin: 0, fontWeight: "500" }}>
+            <p
+              style={{
+                margin: 0,
+                fontWeight: "500",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               <strong>The result?</strong> Users give up. Merchants stick with
               traditional payment processors. And blockchain remains trapped in
               its own bubble.
@@ -242,6 +277,11 @@ export default function WhyPenxchainContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
           <div
             style={{
@@ -249,37 +289,41 @@ export default function WhyPenxchainContent() {
               flexDirection: "column",
               gap: "2rem",
               margin: "2rem 0",
+              width: "100%",
             }}
           >
+            {/* CRITICAL FIX: Properly responsive layout for text + image */}
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                flexDirection: "column",
                 gap: "2rem",
-                flexWrap: "wrap",
+                width: "100%",
               }}
             >
-              <div style={{ flex: "1 1 300px" }}>
-                <h2>Problem #2: Lack of Privacy by Default</h2>
+              <div style={{ width: "100%" }}>
+                <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+                  Problem #2: Lack of Privacy by Default
+                </h2>
 
-                <p>
+                <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
                   Most blockchains expose wallet activity, transaction history,
                   spending patterns, and business data to the public.
                 </p>
 
-                <p>
+                <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
                   <strong>
                     This level of transparency is not sustainable for everyday
                     users or real commerce.
                   </strong>
                 </p>
 
-                <p>
+                <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
                   Privacy should not be a premium feature or an optional add-on.
                   It should be built into the system from the start.
                 </p>
 
-                <p>
+                <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
                   <strong>
                     PENXCHAIN was designed with privacy as the foundation, not
                     an afterthought.
@@ -287,8 +331,13 @@ export default function WhyPenxchainContent() {
                 </p>
               </div>
 
+              {/* CRITICAL FIX: Responsive image container */}
               <div
-                style={{ flex: "1 1 300px" }}
+                style={{
+                  width: "100%",
+                  maxWidth: "600px",
+                  margin: "0 auto",
+                }}
                 className="seo-image breathe"
                 role="button"
                 tabIndex={0}
@@ -314,12 +363,24 @@ export default function WhyPenxchainContent() {
                   width={450}
                   height={300}
                   priority
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    display: "block",
+                    borderRadius: "12px",
+                  }}
                 />
               </div>
             </div>
           </div>
 
-          <div className="callout" style={{ marginTop: "2rem" }}>
+          <div
+            className="callout"
+            style={{
+              marginTop: "2rem",
+              fontSize: "clamp(0.9rem, 2vw, 1rem)",
+            }}
+          >
             When your financial activity is public, you become a target.
             Surveillance, profiling, and exploitation are not hypothetical
             risks. They are the reality of transparent blockchains today.
@@ -332,14 +393,21 @@ export default function WhyPenxchainContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
           variants={staggerContainer}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <h2>Problem #3: Emerging Markets Are Underserved</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            Problem #3: Emerging Markets Are Underserved
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             <strong>Especially Africa.</strong>
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Millions of users and merchants face systemic challenges that
             blockchain could solve, but most projects ignore them entirely:
           </p>
@@ -348,9 +416,11 @@ export default function WhyPenxchainContent() {
             variants={fadeInSlideUp}
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(250px, 100%), 1fr))",
               gap: "1.5rem",
               margin: "2rem 0",
+              width: "100%",
             }}
           >
             <div
@@ -359,11 +429,13 @@ export default function WhyPenxchainContent() {
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <h3
                 style={{
-                  fontSize: "1rem",
+                  fontSize: "clamp(0.95rem, 2vw, 1rem)",
                   marginTop: 0,
                   color: "#0ce50c",
                   fontWeight: "700",
@@ -371,7 +443,12 @@ export default function WhyPenxchainContent() {
               >
                 Limited Access
               </h3>
-              <p style={{ margin: 0, fontSize: "0.95rem" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.85rem, 1.8vw, 0.95rem)",
+                }}
+              >
                 Many people lack access to reliable banking and financial tools
               </p>
             </div>
@@ -382,11 +459,13 @@ export default function WhyPenxchainContent() {
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <h3
                 style={{
-                  fontSize: "1rem",
+                  fontSize: "clamp(0.95rem, 2vw, 1rem)",
                   marginTop: 0,
                   color: "#0ce50c",
                   fontWeight: "700",
@@ -394,7 +473,12 @@ export default function WhyPenxchainContent() {
               >
                 High Costs
               </h3>
-              <p style={{ margin: 0, fontSize: "0.95rem" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.85rem, 1.8vw, 0.95rem)",
+                }}
+              >
                 Remittances and cross-border payments drain wealth through
                 excessive fees
               </p>
@@ -406,11 +490,13 @@ export default function WhyPenxchainContent() {
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <h3
                 style={{
-                  fontSize: "1rem",
+                  fontSize: "clamp(0.95rem, 2vw, 1rem)",
                   marginTop: 0,
                   color: "#0ce50c",
                   fontWeight: "700",
@@ -418,7 +504,12 @@ export default function WhyPenxchainContent() {
               >
                 Platform Dependency
               </h3>
-              <p style={{ margin: 0, fontSize: "0.95rem" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.85rem, 1.8vw, 0.95rem)",
+                }}
+              >
                 Small businesses rely on extractive platforms that control their
                 data and profits
               </p>
@@ -430,11 +521,13 @@ export default function WhyPenxchainContent() {
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "12px",
                 padding: "1.5rem",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <h3
                 style={{
-                  fontSize: "1rem",
+                  fontSize: "clamp(0.95rem, 2vw, 1rem)",
                   marginTop: 0,
                   color: "#0ce50c",
                   fontWeight: "700",
@@ -442,27 +535,32 @@ export default function WhyPenxchainContent() {
               >
                 Weak Protection
               </h3>
-              <p style={{ margin: 0, fontSize: "0.95rem" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.85rem, 1.8vw, 0.95rem)",
+                }}
+              >
                 Data protection is often minimal, leaving users and merchants
                 vulnerable
               </p>
             </div>
           </motion.div>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Yet these markets are <strong>mobile-first</strong>,{" "}
             <strong>digital-native</strong>, and <strong>ready to scale</strong>
             .
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             <strong>
               PENXCHAIN sees Africa not as an afterthought, but as a starting
               point.
             </strong>
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             By building private, accessible, and low-friction commerce
             infrastructure, the ecosystem supports real economic activity, not
             just speculation.
@@ -475,10 +573,17 @@ export default function WhyPenxchainContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <h2>The PENXCHAIN Solution</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            The PENXCHAIN Solution
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             By combining a privacy-aware wallet with fully private e-commerce
             and payments infrastructure, PENXCHAIN creates a unified experience
             for users and merchants.
@@ -490,40 +595,64 @@ export default function WhyPenxchainContent() {
                 "linear-gradient(135deg, rgba(12, 229, 12, 0.1) 0%, rgba(0, 82, 255, 0.1) 100%)",
               border: "1px solid rgba(12, 229, 12, 0.3)",
               borderRadius: "16px",
-              padding: "2.5rem",
+              padding: "clamp(1.5rem, 4vw, 2.5rem)",
               margin: "2.5rem 0",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            <h3 style={{ marginTop: 0, fontSize: "1.4rem" }}>
+            <h3
+              style={{
+                marginTop: 0,
+                fontSize: "clamp(1.2rem, 3vw, 1.4rem)",
+              }}
+            >
               No Fragmentation
             </h3>
-            <p>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               One wallet. One marketplace. One seamless system. No need to
               juggle multiple apps or learn different interfaces.
             </p>
 
-            <h3 style={{ fontSize: "1.4rem" }}>No Data Exposure</h3>
-            <p>
+            <h3 style={{ fontSize: "clamp(1.2rem, 3vw, 1.4rem)" }}>
+              No Data Exposure
+            </h3>
+            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
               Privacy is default. Your transactions, balances, and activity
               remain confidential. Only you control who sees what.
             </p>
 
-            <h3 style={{ fontSize: "1.4rem", marginBottom: 0 }}>
+            <h3
+              style={{
+                fontSize: "clamp(1.2rem, 3vw, 1.4rem)",
+                marginBottom: 0,
+              }}
+            >
               No Unnecessary Intermediaries
             </h3>
-            <p style={{ marginBottom: 0 }}>
+            <p
+              style={{
+                marginBottom: 0,
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
+              }}
+            >
               Direct peer-to-peer commerce. Lower fees. Faster settlements. Real
               ownership.
             </p>
           </div>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             <strong>
               PENXCHAIN exists to return control where it belongs:
             </strong>
           </p>
 
-          <ul style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
+          <ul
+            style={{
+              fontSize: "clamp(0.95rem, 2.2vw, 1.1rem)",
+              lineHeight: "1.8",
+            }}
+          >
             <li>
               <strong>Users own their data</strong>
             </li>
@@ -535,7 +664,9 @@ export default function WhyPenxchainContent() {
             </li>
           </ul>
 
-          <p>All without sacrificing usability or liquidity.</p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
+            All without sacrificing usability or liquidity.
+          </p>
         </motion.section>
 
         <motion.section
@@ -544,29 +675,36 @@ export default function WhyPenxchainContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <h2>What Makes This Different?</h2>
+          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
+            What Makes This Different?
+          </h2>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Many projects talk about privacy. Few actually build it as the
             foundation.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Many projects talk about emerging markets. Most ignore them after
             the marketing campaign ends.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             Many projects talk about user experience. But they still make people
             use five different apps to do one simple thing.
           </p>
 
-          <p>
+          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             <strong>PENXCHAIN is different because it is deliberate:</strong>
           </p>
 
-          <ul>
+          <ul style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
             <li>
               Privacy is not optional. It is built into every transaction, every
               payment, every interaction.
@@ -593,11 +731,20 @@ export default function WhyPenxchainContent() {
             background: "rgba(12, 229, 12, 0.05)",
             border: "2px solid rgba(12, 229, 12, 0.2)",
             borderRadius: "16px",
-            padding: "3rem 2rem",
+            padding: "clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2rem)",
             textAlign: "center",
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "0 1rem",
+            maxWidth: "calc(100% - 2rem)",
           }}
         >
-          <h2 style={{ fontSize: "2rem", marginTop: 0 }}>
+          <h2
+            style={{
+              fontSize: "clamp(1.3rem, 3.5vw, 2rem)",
+              marginTop: 0,
+            }}
+          >
             In Short, PENXCHAIN Exists Because the Next Phase of Blockchain Must
             Be:
           </h2>
@@ -605,68 +752,89 @@ export default function WhyPenxchainContent() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
               gap: "2rem",
               margin: "2rem 0 0",
               textAlign: "left",
             }}
           >
-            <div>
+            <div style={{ width: "100%", boxSizing: "border-box" }}>
               <h3
                 style={{
                   color: "#0ce50c",
-                  fontSize: "1.5rem",
+                  fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
                   marginBottom: "0.5rem",
                 }}
               >
                 Usable
               </h3>
-              <p style={{ margin: 0 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Simple enough for anyone to use without friction
               </p>
             </div>
 
-            <div>
+            <div style={{ width: "100%", boxSizing: "border-box" }}>
               <h3
                 style={{
                   color: "#0ce50c",
-                  fontSize: "1.5rem",
+                  fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
                   marginBottom: "0.5rem",
                 }}
               >
                 Private
               </h3>
-              <p style={{ margin: 0 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Protecting users by default, not as an afterthought
               </p>
             </div>
 
-            <div>
+            <div style={{ width: "100%", boxSizing: "border-box" }}>
               <h3
                 style={{
                   color: "#0ce50c",
-                  fontSize: "1.5rem",
+                  fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
                   marginBottom: "0.5rem",
                 }}
               >
                 Inclusive
               </h3>
-              <p style={{ margin: 0 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Built for everyone, especially underserved communities
               </p>
             </div>
 
-            <div>
+            <div style={{ width: "100%", boxSizing: "border-box" }}>
               <h3
                 style={{
                   color: "#0ce50c",
-                  fontSize: "1.5rem",
+                  fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
                   marginBottom: "0.5rem",
                 }}
               >
                 Commerce-Ready
               </h3>
-              <p style={{ margin: 0 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
+                }}
+              >
                 Designed for real transactions, not just speculation
               </p>
             </div>
@@ -679,13 +847,28 @@ export default function WhyPenxchainContent() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeInSlideUp}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0 1rem",
+          }}
         >
-          <p style={{ fontSize: "1.2rem", lineHeight: "1.8" }}>
+          <p
+            style={{
+              fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
+              lineHeight: "1.8",
+            }}
+          >
             That is the foundation of a truly global, privacy-powered digital
             economy.
           </p>
 
-          <p style={{ fontSize: "1.2rem", lineHeight: "1.8" }}>
+          <p
+            style={{
+              fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
+              lineHeight: "1.8",
+            }}
+          >
             <strong>
               PENXCHAIN exists because someone had to build it. And we are.
             </strong>
@@ -696,8 +879,10 @@ export default function WhyPenxchainContent() {
           style={{
             maxWidth: "300px",
             margin: "0 auto 2rem",
-            padding: "0 2rem",
+            padding: "0 1rem",
             position: "relative",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -710,6 +895,7 @@ export default function WhyPenxchainContent() {
               background: "rgba(255, 255, 255, 0.03)",
               borderRadius: "16px",
               border: "1px solid rgba(255, 255, 255, 0.05)",
+              flexWrap: "wrap",
             }}
           >
             <button
@@ -727,12 +913,14 @@ export default function WhyPenxchainContent() {
                 padding: "0.75rem 1.5rem",
                 borderRadius: "50px",
                 color: isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.7)",
-                fontSize: "1rem",
+                fontSize: "clamp(0.9rem, 2vw, 1rem)",
                 fontWeight: "600",
                 cursor: "pointer",
                 transition: "all 0.3s ease",
                 position: "relative",
                 overflow: "visible",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
               onMouseEnter={(e) => {
                 if (!isLiked) {
@@ -758,14 +946,18 @@ export default function WhyPenxchainContent() {
                 fill={isLiked ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth="2"
-                style={{ width: "24px", height: "24px" }}
+                style={{ width: "24px", height: "24px", flexShrink: 0 }}
               >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
               {likeCount > 0 && <span>{likeCount}</span>}
             </button>
             <span
-              style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.9rem" }}
+              style={{
+                color: "rgba(255, 255, 255, 0.6)",
+                fontSize: "clamp(0.8rem, 1.8vw, 0.9rem)",
+                textAlign: "center",
+              }}
             >
               {isLiked ? "You liked this" : "Like this post"}
             </span>
@@ -801,6 +993,7 @@ export default function WhyPenxchainContent() {
                   left: "50%",
                   pointerEvents: "none",
                   zIndex: 1000,
+                  willChange: "transform, opacity",
                 }}
               >
                 <svg

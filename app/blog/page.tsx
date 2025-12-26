@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: "Blog & News — PENXCHAIN",
   description:
     "Stay updated with the latest news, updates, and insights from PENXCHAIN. Learn about privacy, blockchain technology, and our ecosystem.",
+  keywords: [
+    "PENXCHAIN blog",
+    "PENXCHAIN news",
+    "blockchain updates"
+  ],
   openGraph: {
     title: "Blog & News — PENXCHAIN",
     description:
@@ -40,16 +45,29 @@ const blogPosts: BlogPost[] = [
     readTime: "5 min read",
   },
   {
-  id: "ecosystem-overview-coming-soon",
-  slug: "ecosystem-overview-coming-soon",
-  title: "Ecosystem Overview Coming Soon",
-  excerpt: "We're revealing everything. Stay tuned for the full PENXCHAIN ecosystem overview showing how Base and Aleo integration makes privacy at scale possible.",
-  image: "/blog-images/ecosystem-teaser.jpg",
-  date: "2025-12-20",
-  author: "PENXCHAIN Team",
-  category: "Announcement",
-  readTime: "5 min read",
-},
+    id: "merry-christmas-2025",
+    slug: "merry-christmas-2025",
+    title: "Merry Christmas from PENXCHAIN",
+    excerpt:
+      "To all our privacy-conscious friends, families, and communities—Merry Christmas! Celebrating Aleo, Base, zkSync, Scroll, Starknet, Verza, and all the builders making privacy possible.",
+    image: "/blog-images/christmas-2025.jpg",
+    date: "2025-12-25",
+    author: "PENXCHAIN Team",
+    category: "Community",
+    readTime: "3 min read",
+  },
+  {
+    id: "ecosystem-overview-coming-soon",
+    slug: "ecosystem-overview-coming-soon",
+    title: "Ecosystem Overview Coming Soon",
+    excerpt:
+      "We're revealing everything. Stay tuned for the full PENXCHAIN ecosystem overview showing how Base and Aleo integration makes privacy at scale possible.",
+    image: "/blog-images/ecosystem-teaser.jpg",
+    date: "2025-12-20",
+    author: "PENXCHAIN Team",
+    category: "Announcement",
+    readTime: "5 min read",
+  },
   {
     id: "2",
     slug: "connecting-with-base-hybrid-blockchain",
@@ -63,16 +81,17 @@ const blogPosts: BlogPost[] = [
     readTime: "8 min read",
   },
   {
-  id: "3",
-  slug: "penx-token-utility",
-  title: "$PENX Token Utility: The Economic Backbone of PENXCHAIN",
-  excerpt: "Discover how $PENX powers privacy-first commerce, governance, and incentives across the PENXCHAIN ecosystem through staking, payments, and merchant perks.",
-  image: "/blog-images/penx-token-utility.jpg",
-  date: "2025-12-16",
-  author: "Emmanuel Oluwafemi",
-  category: "Token",
-  readTime: "9 min read",
-},
+    id: "3",
+    slug: "penx-token-utility",
+    title: "$PENX Token Utility: The Economic Backbone of PENXCHAIN",
+    excerpt:
+      "Discover how $PENX powers privacy-first commerce, governance, and incentives across the PENXCHAIN ecosystem through staking, payments, and merchant perks.",
+    image: "/blog-images/penx-token-utility.jpg",
+    date: "2025-12-16",
+    author: "Emmanuel Oluwafemi",
+    category: "Token",
+    readTime: "9 min read",
+  },
   {
     id: "4",
     slug: "why-penxchain-exists",

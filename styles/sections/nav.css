@@ -169,7 +169,7 @@ header {
   }
 
   .logo img {
-    max-height: 36px;
+    max-height: /*36px*/ clamp(50px, 7vw, 100px);
   }
 
   /* Hide logo when menu is open */
@@ -227,7 +227,7 @@ header {
   }
 
   .nav-logo-mobile img {
-    height: 35px;
+    height: /*35px*/ clamp(50px, 7vw, 100px);
     width: auto;
   }
 
@@ -241,8 +241,9 @@ header {
   }
 
   .logo img {
-    max-height: 30px;
-    width: 130px;
+    max-height: /*30px*/ clamp(45px, 6vw, 100px);
+
+    
   }
 
   .nav-links {
@@ -268,7 +269,8 @@ header {
   }
 
   .logo img {
-    max-height: 35px;
+    /* max-height: 35px; */
+    max-height: clamp(40px, 6vw, 100px);
   }
 
   .nav-links {
@@ -294,7 +296,8 @@ header {
   }
 
   .logo img {
-    max-height: 38px;
+    /* max-height: 38px; */
+    max-height: clamp(40px, 5.5vw, 100px);
   }
 
   .nav-links {
@@ -323,7 +326,8 @@ header {
   }
 
   .logo img {
-    max-height: 40px;
+    /* max-height: 40px; */
+    max-height: clamp(45px, 5vw, 100px);
   }
 
   .nav-links {

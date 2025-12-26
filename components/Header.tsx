@@ -35,7 +35,7 @@ export default function Header() {
         <div className="nav-container">
           <div className="logo">
             <Image
-              src="/img/penxchain-lockup.png"
+              src="/img/penxchain-lockup-christmas-2.png"
               alt="PENXCHAIN LOGO"
               width={129}
               height={48}
@@ -59,7 +59,7 @@ export default function Header() {
           <ul className={`nav-links ${isOpen ? "open" : ""}`} id="navLinks">
             <li className="nav-logo-mobile">
               <Image
-                src="/img/penxchain-lockup.png"
+                src="/img/penxchain-lockup-christmas-2.png"
                 alt="PENXCHAIN LOGO"
                 width={100}
                 height={25}

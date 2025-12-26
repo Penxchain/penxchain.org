@@ -34,6 +34,28 @@ export const metadata: Metadata = {
 
   description:
     "PENXCHAIN is a privacy-first blockchain ecosystem offering a decentralized wallet, private payments, DeFi tools, and a global marketplace built for true financial freedom.",
+  keywords: [
+    "PENXCHAIN",
+    "pen",
+    "privacy blockchain",
+    "decentralized wallet",
+    "private payments",
+    "blockchain marketplace",
+    "DeFi tools",
+    "secure finance",
+    "user-first blockchain",
+    "data ownership",
+    "financial freedom",
+    "crypto privacy",
+    "blockchain ecosystem",
+    "PENX",
+    "private crypto",
+    "blockchain security",
+    "privacy technology",
+    "decentralized finance",
+    "private transactions",
+    "blockchain innovation",
+  ],
 
   robots: {
     index: true,
@@ -58,7 +80,7 @@ export const metadata: Metadata = {
     siteName: "PENXCHAIN",
     images: [
       {
-        url: "/img/featured.png",
+        url: "/img/.png",
         width: 1200,
         height: 630,
         alt: "PENXCHAIN Blockchain Ecosystem",

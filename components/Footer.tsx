@@ -47,10 +47,10 @@ export default function Footer() {
             <h4>Resources</h4>
             <ul>
               <li>
-                <Link href="#">Download Wallet</Link>
+                <Link href="/">Download Wallet</Link>
               </li>
               <li>
-                <Link href="#">Download Marketplace</Link>
+                <Link href="/">Download Marketplace</Link>
               </li>
               <li>
                 <a
@@ -133,10 +133,10 @@ export default function Footer() {
         <p>
           <i className="fas fa-envelope"></i>
           <a
-            href="mailto:admin@penxchain.com"
+            href="mailto:admin@penxchain.org"
             style={{ color: "inherit", textDecoration: "none" }}
           >
-            &nbsp;admin@penxchain.com
+            &nbsp;admin@penxchain.org
           </a>
         </p>
       </div>
