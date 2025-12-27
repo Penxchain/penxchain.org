@@ -735,7 +735,7 @@ export default function EcosystemTeaserPage() {
                 Follow on Twitter
               </a>
               <a
-                href="https://t.me/PENXCHAIN"
+                href="https://t.me/Officialpenxchain"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
