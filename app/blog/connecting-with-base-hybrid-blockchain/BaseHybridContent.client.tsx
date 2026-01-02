@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, Variants, AnimatePresence } from "framer-motion";
+import ShareButtons from "@/components/ShareButtons";
 
 const fadeInSlideUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -34,24 +35,26 @@ interface Heart {
 
 export default function BaseHybridContent() {
   const postId = 5;
+  const postTitle = "Connecting with Base: PENXCHAIN's Hybrid Architecture";
+  const postSlug = "connecting-with-base";
 
-  const [isLiked, setIsLiked] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(`blog_liked_${postId}`) === "true";
-    }
-    return false;
-  });
-
-  const [likeCount, setLikeCount] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const count = localStorage.getItem(`blog_likes_${postId}`);
-      return count ? parseInt(count, 10) : 0;
-    }
-    return 0;
-  });
-
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const [heartIdCounter, setHeartIdCounter] = useState(0);
+
+  // ✅ Senior Fix: Using requestAnimationFrame to prevent cascading renders
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setIsMounted(true);
+      const liked = localStorage.getItem(`blog_liked_${postId}`);
+      const count = localStorage.getItem(`blog_likes_${postId}`);
+      setIsLiked(liked === "true");
+      setLikeCount(count ? parseInt(count, 10) : 0);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [postId]);
 
   const handleLike = (): void => {
     const newLikedState = !isLiked;
@@ -94,10 +97,20 @@ export default function BaseHybridContent() {
     }, 2500);
   };
 
+  if (!isMounted) return null;
+
   return (
     <main className="seo-article fade-up">
+      {/* HEADER SECTION */}
       <div
-        style={{ maxWidth: "900px", margin: "0 auto 2rem", padding: "0 2rem" }}
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto 2rem",
+          padding: "0 2rem",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
         <Link
           href="/blog"
@@ -107,18 +120,24 @@ export default function BaseHybridContent() {
             gap: "0.5rem",
             color: "rgba(255, 255, 255, 0.7)",
             textDecoration: "none",
-            fontWeight: "500",
-            padding: "0.5rem 1rem",
-            borderRadius: "8px",
-            transition: "all 0.3s ease",
+            fontWeight: "600",
+            padding: "0.6rem 1.2rem",
+            borderRadius: "10px",
+            background: "rgba(255, 255, 255, 0.03)",
+            border: "1px solid rgba(255, 255, 255, 0.05)",
+            transition: "all 0.4s cubic-bezier(0.23, 1, 0.32, 1)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#0ce50c";
-            e.currentTarget.style.background = "rgba(12, 229, 12, 0.1)";
+            e.currentTarget.style.color = "#ff4d4d"; // Premium Muted Red
+            e.currentTarget.style.background = "rgba(139, 0, 0, 0.15)"; // Deep Ruby Glass
+            e.currentTarget.style.borderColor = "rgba(255, 77, 77, 0.3)";
+            e.currentTarget.style.backdropFilter = "blur(10px)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+            e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
+            e.currentTarget.style.backdropFilter = "none";
           }}
         >
           <svg
@@ -126,13 +145,14 @@ export default function BaseHybridContent() {
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
-            style={{ width: "20px", height: "20px" }}
+            strokeWidth="2.5"
+            style={{ width: "18px", height: "18px" }}
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back to Blog
         </Link>
+        <ShareButtons title={postTitle} slug={postSlug} />
       </div>
 
       <script
@@ -472,133 +492,173 @@ export default function BaseHybridContent() {
           </p>
         </motion.section>
 
-        <div
+        {/* --- Unified Premium Action Hub (Share & Like) --- */}
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInSlideUp}
           style={{
-            maxWidth: "300px",
-            margin: "0 auto 2rem",
-            padding: "0 2rem",
-            position: "relative",
+            maxWidth: "800px",
+            margin: "5rem auto 4rem",
+            padding: "3.5rem 2rem",
+            background: "rgba(255, 255, 255, 0.02)",
+            backdropFilter: "blur(20px)",
+            borderRadius: "32px",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            textAlign: "center",
+            boxShadow: "0 40px 100px -20px rgba(0,0,0,0.5)",
           }}
         >
+          <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>💡</div>
+          <h3
+            style={{
+              fontSize: "1.7rem",
+              fontWeight: "800",
+              marginBottom: "1rem",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Enjoyed this architectural deep-dive?
+          </h3>
+          <p
+            style={{
+              color: "rgba(255, 255, 255, 0.5)",
+              marginBottom: "2.5rem",
+              lineHeight: "1.6",
+              maxWidth: "500px",
+              margin: "0 auto 2.5rem",
+            }}
+          >
+            Knowledge is the only asset that grows when shared. Help us
+            enlighten the community by sharing this hybrid vision with your
+            network.
+          </p>
+
           <div
             style={{
               display: "flex",
-              justifyContent: "center",
+              flexDirection: "column",
               alignItems: "center",
-              gap: "1rem",
-              padding: "1.5rem",
-              background: "rgba(255, 255, 255, 0.03)",
-              borderRadius: "16px",
-              border: "1px solid rgba(255, 255, 255, 0.05)",
+              gap: "2.5rem",
             }}
           >
-            <button
-              onClick={handleLike}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                background: isLiked
-                  ? "rgba(255, 107, 107, 0.15)"
-                  : "transparent",
-                border: `2px solid ${
-                  isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.1)"
-                }`,
-                padding: "0.75rem 1.5rem",
-                borderRadius: "50px",
-                color: isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.7)",
-                fontSize: "1rem",
-                fontWeight: "600",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                position: "relative",
-                overflow: "visible",
-              }}
-              onMouseEnter={(e) => {
-                if (!isLiked) {
-                  e.currentTarget.style.background = "rgba(255, 107, 107, 0.1)";
-                  e.currentTarget.style.borderColor = "#ff6b6b";
-                  e.currentTarget.style.color = "#ff6b6b";
-                  e.currentTarget.style.transform = "scale(1.05)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isLiked) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor =
-                    "rgba(255, 255, 255, 0.1)";
-                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-                  e.currentTarget.style.transform = "scale(1)";
-                }
-              }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill={isLiked ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth="2"
-                style={{ width: "24px", height: "24px" }}
-              >
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              {likeCount > 0 && <span>{likeCount}</span>}
-            </button>
-            <span
-              style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.9rem" }}
-            >
-              {isLiked ? "You liked this" : "Like this post"}
-            </span>
-          </div>
-
-          <AnimatePresence>
-            {hearts.map((heart) => (
-              <motion.div
-                key={heart.id}
-                initial={{
-                  opacity: 1,
-                  y: 0,
-                  x: heart.x,
-                  scale: 0,
-                  rotate: 0,
-                }}
-                animate={{
-                  opacity: 0,
-                  y: -150,
-                  x: heart.x + heart.drift,
-                  scale: 1,
-                  rotate: heart.rotation,
-                }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: heart.duration,
-                  delay: heart.delay,
-                  ease: [0.25, 0.46, 0.45, 0.94],
-                }}
+            {/* Redesigned Like Button inside the Share Hub */}
+            <div style={{ position: "relative" }}>
+              <motion.button
+                onClick={handleLike}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  pointerEvents: "none",
-                  zIndex: 1000,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  background: isLiked
+                    ? "rgba(255, 77, 77, 0.1)"
+                    : "rgba(255, 255, 255, 0.03)",
+                  border: `1px solid ${
+                    isLiked
+                      ? "rgba(255, 77, 77, 0.4)"
+                      : "rgba(255, 255, 255, 0.1)"
+                  }`,
+                  padding: "14px 32px",
+                  borderRadius: "100px",
+                  color: isLiked ? "#ff4d4d" : "rgba(255, 255, 255, 0.8)",
+                  fontSize: "1rem",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
                 }}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
-                  fill="#ff6b6b"
-                  style={{
-                    width: `${heart.size}px`,
-                    height: `${heart.size}px`,
-                    filter: "drop-shadow(0 2px 4px rgba(255, 107, 107, 0.3))",
-                  }}
+                  fill={isLiked ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{ width: "22px", height: "22px" }}
                 >
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+                {isLiked ? `Loved by ${likeCount}` : "Appreciate Article"}
+              </motion.button>
+
+              {/* Heart animation effects */}
+              <AnimatePresence>
+                {hearts.map((heart) => (
+                  <motion.div
+                    key={heart.id}
+                    initial={{
+                      opacity: 1,
+                      y: 0,
+                      x: heart.x,
+                      scale: 0,
+                      rotate: 0,
+                    }}
+                    animate={{
+                      opacity: 0,
+                      y: -150,
+                      x: heart.x + heart.drift,
+                      scale: 1,
+                      rotate: heart.rotation,
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{
+                      duration: heart.duration,
+                      delay: heart.delay,
+                      ease: [0.25, 0.46, 0.45, 0.94],
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: "0",
+                      left: "50%",
+                      pointerEvents: "none",
+                      zIndex: 1000,
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="#ff4d4d"
+                      style={{
+                        width: `${heart.size}px`,
+                        height: `${heart.size}px`,
+                        filter: "drop-shadow(0 2px 4px rgba(255, 77, 77, 0.3))",
+                      }}
+                    >
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            <div
+              style={{
+                width: "100%",
+                height: "1px",
+                background: "rgba(255,255,255,0.06)",
+                maxWidth: "400px",
+              }}
+            />
+
+            {/* Share section */}
+            <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: "800",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.3)",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                Spread the Vision
+              </span>
+              <ShareButtons title={postTitle} slug={postSlug} />
+            </div>
+          </div>
+        </motion.div>
       </article>
     </main>
   );

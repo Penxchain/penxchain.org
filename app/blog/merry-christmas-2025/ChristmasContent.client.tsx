@@ -1,20 +1,14 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, Variants, AnimatePresence } from "framer-motion";
+import ShareButtons from "@/components/ShareButtons";
+import confetti from "canvas-confetti"; // Assumes 'npm install canvas-confetti'
 
-const fadeInSlideUp: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.8, ease: [0.42, 0, 0.58, 1] },
-  },
-};
-
+// --- Types ---
 interface Heart {
   id: number;
   x: number;
@@ -25,703 +19,694 @@ interface Heart {
   drift: number;
 }
 
+interface Snowflake {
+  id: number;
+  left: string;
+  duration: number;
+  delay: number;
+  size: number;
+  opacity: number;
+}
+
+/**
+ * High-Performance Snowfall
+ */
+const Snowfall = () => {
+  const [snowflakes, setSnowflakes] = useState<Snowflake[]>([]);
+
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => {
+      const flakes = Array.from({ length: 40 }).map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        duration: Math.random() * 12 + 15,
+        delay: Math.random() * -20,
+        size: Math.random() * 2 + 1,
+        opacity: Math.random() * 0.3 + 0.2,
+      }));
+      setSnowflakes(flakes);
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  if (snowflakes.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 1,
+        overflow: "hidden",
+      }}
+    >
+      {snowflakes.map((flake) => (
+        <motion.div
+          key={flake.id}
+          initial={{ y: -20, opacity: 0 }}
+          animate={{
+            y: "105vh",
+            opacity: [0, flake.opacity, flake.opacity, 0],
+          }}
+          transition={{
+            duration: flake.duration,
+            repeat: Infinity,
+            delay: flake.delay,
+            ease: "linear",
+          }}
+          style={{
+            position: "absolute",
+            left: flake.left,
+            width: flake.size,
+            height: flake.size,
+            backgroundColor: "#fff",
+            borderRadius: "50%",
+            filter: "blur(1px)",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 25 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8, ease: [0.23, 1, 0.32, 1] },
+  },
+};
+
 export default function ChristmasPage() {
   const postId = 9;
-
   const [isMounted, setIsMounted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const [heartIdCounter, setHeartIdCounter] = useState(0);
+  const [giftClaimed, setGiftClaimed] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
 
-  // ✅ SAFE localStorage access
+  // Design Tokens
+  const EMERALD = "#10b981";
+  const RUBY = "#ef4444";
+  const PREMIUM_NAVY = "#020617";
+  const BORDER_SUBTLE = "rgba(255, 255, 255, 0.08)";
+  const TEXT_DIM = "rgba(255, 255, 255, 0.6)";
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMounted(true);
+    const frameId = requestAnimationFrame(() => {
+      setIsMounted(true);
+      const savedLiked = localStorage.getItem(`blog_liked_${postId}`);
+      const savedCount = localStorage.getItem(`blog_likes_${postId}`);
+      const savedGift = localStorage.getItem(`christmas_gift_2025`);
 
-    const liked = localStorage.getItem(`blog_liked_${postId}`);
-    const count = localStorage.getItem(`blog_likes_${postId}`);
-
-    setIsLiked(liked === "true");
-    setLikeCount(count ? parseInt(count, 10) : 0);
+      setIsLiked(savedLiked === "true");
+      setLikeCount(savedCount ? parseInt(savedCount, 10) : 0);
+      setGiftClaimed(savedGift === "true");
+    });
+    return () => cancelAnimationFrame(frameId);
   }, [postId]);
 
-  if (!isMounted) {
-    return null; // prevents hydration mismatch
-  }
+  const handleGiftClick = () => {
+    if (giftClaimed) return;
 
-  const createHearts = () => {
-    const newHearts: Heart[] = [];
-    const count = Math.floor(Math.random() * 3) + 3;
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: [EMERALD, RUBY, "#ffffff", "#fbbf24"],
+    });
 
-    for (let i = 0; i < count; i++) {
-      newHearts.push({
+    setGiftClaimed(true);
+    setShowNotification(true);
+    localStorage.setItem(`christmas_gift_2025`, "true");
+
+    setTimeout(() => setShowNotification(false), 5000);
+  };
+
+  const shoutouts = useMemo(
+    () => [
+      {
+        name: "Aleo",
+        color: EMERALD,
+        desc: "Pioneering ZK technology that makes privacy practical at scale.",
+      },
+      {
+        name: "Base",
+        color: "#0052ff",
+        desc: "Building an accessible Layer 2 that brings blockchain to everyone.",
+      },
+      {
+        name: "zkSync",
+        color: "#8b5cf6",
+        desc: "Advancing ZK rollups and making Ethereum more scalable.",
+      },
+      {
+        name: "Scroll",
+        color: "#ffb088",
+        desc: "Pushing the boundaries of ZK-EVM technology.",
+      },
+      {
+        name: "Starknet",
+        color: "#ec4899",
+        desc: "Innovating with STARK proofs and Cairo language.",
+      },
+      {
+        name: "Verza",
+        color: "#22c55e",
+        desc: "Contributing to the privacy ecosystem and decentralization.",
+      },
+    ],
+    [EMERALD]
+  );
+
+  const handleLike = useCallback(() => {
+    const nextState = !isLiked;
+    const nextCount = nextState ? likeCount + 1 : Math.max(0, likeCount - 1);
+    setIsLiked(nextState);
+    setLikeCount(nextCount);
+    localStorage.setItem(`blog_liked_${postId}`, String(nextState));
+    localStorage.setItem(`blog_likes_${postId}`, String(nextCount));
+
+    if (nextState) {
+      const burst: Heart[] = Array.from({ length: 8 }).map((_, i) => ({
         id: heartIdCounter + i,
-        x: Math.random() * 100 - 50,
-        size: Math.random() * 10 + 20,
-        duration: Math.random() * 0.5 + 1.5,
-        delay: i * 0.1,
-        rotation: (Math.random() - 0.5) * 60,
-        drift: (Math.random() - 0.5) * 30,
-      });
-    }
-
-    setHearts((prev) => [...prev, ...newHearts]);
-    setHeartIdCounter((prev) => prev + count);
-
-    setTimeout(() => {
-      setHearts((prev) =>
-        prev.filter((h) => !newHearts.find((nh) => nh.id === h.id))
+        x: (Math.random() - 0.5) * 120,
+        size: Math.random() * 15 + 15,
+        duration: 1.2 + Math.random(),
+        delay: i * 0.05,
+        rotation: (Math.random() - 0.5) * 90,
+        drift: (Math.random() - 0.5) * 60,
+      }));
+      setHearts((prev) => [...prev, ...burst]);
+      setHeartIdCounter((c) => c + 8);
+      setTimeout(
+        () => setHearts((prev) => prev.filter((h) => !burst.includes(h))),
+        3000
       );
-    }, 2500);
-  };
-
-  const handleLike = () => {
-    const newLikedState = !isLiked;
-    const newCount = newLikedState ? likeCount + 1 : Math.max(0, likeCount - 1);
-
-    setIsLiked(newLikedState);
-    setLikeCount(newCount);
-
-    localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
-    localStorage.setItem(`blog_likes_${postId}`, String(newCount));
-
-    if (newLikedState) {
-      createHearts();
     }
-  };
+  }, [isLiked, likeCount, heartIdCounter, postId]);
 
-  // 👇👇👇
-  // EVERYTHING BELOW THIS LINE (YOUR JSX/UI)
-  // STAYS EXACTLY THE SAME
+  if (!isMounted)
+    return <div style={{ minHeight: "100vh", background: PREMIUM_NAVY }} />;
 
   return (
-    <main className="seo-article fade-up">
-      <div
-        style={{ maxWidth: "900px", margin: "0 auto 2rem", padding: "0 2rem" }}
+    <main
+      style={{
+        backgroundColor: PREMIUM_NAVY,
+        backgroundImage: `radial-gradient(circle at 50% 0%, #0f172a 0%, ${PREMIUM_NAVY} 100%)`,
+        color: "#fff",
+        minHeight: "100vh",
+        overflowX: "hidden",
+        position: "relative",
+        paddingTop: "120px",
+      }}
+    >
+      <Snowfall />
+
+      {/* Global Notification */}
+      <AnimatePresence>
+        {showNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            style={{
+              position: "fixed",
+              bottom: "40px",
+              left: "50%",
+              zIndex: 100,
+              padding: "1.2rem 2.5rem",
+              background: "rgba(16, 185, 129, 0.15)",
+              backdropFilter: "blur(12px)",
+              border: `1px solid ${EMERALD}`,
+              borderRadius: "100px",
+              color: "#fff",
+              fontWeight: "600",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🌟 You've unlocked the spirit of Privacy! Have a great 2026!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <nav
+        style={{
+          maxWidth: "1100px",
+          margin: "0 auto",
+          padding: "0 2rem",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "relative",
+          zIndex: 20,
+        }}
       >
         <Link
           href="/blog"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            color: "rgba(255, 255, 255, 0.7)",
-            textDecoration: "none",
-            fontWeight: "500",
-            padding: "0.5rem 1rem",
-            borderRadius: "8px",
-            transition: "all 0.3s ease",
-          }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#0ce50c";
-            e.currentTarget.style.background = "rgba(12, 229, 12, 0.1)";
+            e.currentTarget.style.color = "#c94a4a";
+            e.currentTarget.style.background = "rgba(201, 74, 74, 0.08)";
+            e.currentTarget.style.backdropFilter = "blur(6px)";
+            e.currentTarget.style.borderColor = "rgba(201, 74, 74, 0.25)";
+            e.currentTarget.style.padding = "6px 10px";
+            e.currentTarget.style.borderRadius = "10px";
+            e.currentTarget.style.transform = "translateX(-3px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
+            e.currentTarget.style.color = TEXT_DIM;
             e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.backdropFilter = "none";
+            e.currentTarget.style.borderColor = "transparent";
+            e.currentTarget.style.padding = "0";
+            e.currentTarget.style.borderRadius = "0";
+            e.currentTarget.style.transform = "translateX(0)";
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            color: TEXT_DIM,
+            textDecoration: "none",
+            fontSize: "0.95rem",
+            fontWeight: "500",
+            border: "1px solid transparent",
+            transition: "all 0.25s ease",
+            willChange: "transform, background, color",
           }}
         >
           <svg
-            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
-            style={{ width: "20px", height: "20px" }}
+            strokeWidth="2.5"
+            style={{ transition: "transform 0.25s ease" }}
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back to Blog
         </Link>
-      </div>
 
-      {/* JSON-LD Schemas */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline:
-              "Merry Christmas from PENXCHAIN: Celebrating the Privacy Blockchain Community",
-            description:
-              "PENXCHAIN wishes a Merry Christmas to all privacy-conscious builders, users, and communities in the blockchain ecosystem—Aleo, Base, zkSync, Scroll, Starknet, and more.",
-            image: "https://penxchain.org/blog-images/christmas-2025.jpg",
-            author: {
-              "@type": "Person",
-              name: "PENXCHAIN Team",
-            },
-            publisher: {
-              "@type": "Organization",
-              name: "PENXCHAIN",
-              logo: {
-                "@type": "ImageObject",
-                url: "https://penxchain.org/img/logo.png",
-              },
-            },
-            datePublished: "2025-12-25",
-            dateModified: "2025-12-25",
-          }),
+        <ShareButtons
+          title="Merry Christmas 2025 - PENXCHAIN"
+          slug="merry-christmas-2025"
+        />
+      </nav>
+
+      <motion.article
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        style={{
+          maxWidth: "850px",
+          margin: "0 auto",
+          padding: "2rem 1.5rem 8rem",
+          position: "relative",
+          zIndex: 5,
         }}
-      />
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              {
-                "@type": "ListItem",
-                position: 1,
-                name: "Home",
-                item: "https://penxchain.org",
-              },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "Blog",
-                item: "https://penxchain.org/blog",
-              },
-              {
-                "@type": "ListItem",
-                position: 3,
-                name: "Merry Christmas 2025",
-                item: "https://penxchain.org/blog/merry-christmas-2025",
-              },
-            ],
-          }),
-        }}
-      />
-
-      <article>
-        {/* FESTIVE HERO WITH CENTERED IMAGE */}
+      >
+        {/* Hero Section */}
         <motion.section
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={fadeInSlideUp}
-          style={{
-            textAlign: "center",
-            paddingBottom: "2rem",
-            position: "relative",
-          }}
+          variants={itemVariants}
+          style={{ textAlign: "center", marginBottom: "5rem" }}
         >
-          <motion.div
+          <h1
             style={{
-              fontSize: "3rem",
-              marginBottom: "1rem",
-            }}
-            animate={{
-              scale: [1, 1.1, 1],
-              rotate: [0, 5, -5, 0],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
+              fontSize: "clamp(2.2rem, 6vw, 3.8rem)",
+              fontWeight: "850",
+              letterSpacing: "-0.04em",
+              lineHeight: "1.1",
+              marginBottom: "1.5rem",
             }}
           >
-            🎄
-          </motion.div>
-
-          <h1 style={{ marginBottom: "1.5rem" }}>
-            Merry Christmas from PENXCHAIN
+            Season of <span style={{ color: EMERALD }}>Privacy</span> <br /> &
+            Global Peace
           </h1>
-
           <p
             style={{
-              fontSize: "1.2rem",
-              color: "rgba(255, 255, 255, 0.9)",
-              maxWidth: "700px",
-              margin: "0 auto 3rem",
+              fontSize: "1.1rem",
+              color: TEXT_DIM,
+              maxWidth: "650px",
+              margin: "0 auto 3.5rem",
+              lineHeight: "1.7",
             }}
           >
             To all our privacy-conscious friends, families, builders, and
-            communities around the world—we wish you a wonderful Christmas
-            filled with joy, peace, and the freedom you deserve.
+            communities—we wish you a wonderful Christmas filled with joy,
+            peace, and the freedom you deserve.
           </p>
-
-          {/* HERO IMAGE - Well sized and centered */}
-          <div
-            className="seo-image breathe"
-            role="button"
-            tabIndex={0}
-            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-              const el = e.currentTarget;
-              if (!el) return;
-              el.classList.remove("breathe");
-              void el.offsetWidth;
-              el.classList.add("breathe");
-            }}
-            onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
-              if (e.key === "Enter" || e.key === " ") {
-                const el = e.currentTarget;
-                el.classList.remove("breathe");
-                void el.offsetWidth;
-                el.classList.add("breathe");
-              }
-            }}
+          <motion.div
+            whileHover={{ scale: 1.015 }}
             style={{
-              maxWidth: "900px",
-              margin: "0 auto",
-              borderRadius: "20px",
+              borderRadius: "24px",
               overflow: "hidden",
-              boxShadow: "0 20px 60px rgba(12, 229, 12, 0.2)",
-              border: "2px solid rgba(12, 229, 12, 0.3)",
+              border: `1px solid ${BORDER_SUBTLE}`,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+              margin: "0 auto",
             }}
           >
             <Image
               src="/blog-images/christmas-2025.jpg"
-              alt="Merry Christmas from PENXCHAIN - Privacy blockchain community celebration"
-              width={900}
-              height={500}
+              alt="PENXCHAIN Christmas"
+              width={850}
+              height={470}
               priority
-              style={{ width: "100%", height: "auto" }}
+              style={{ width: "100%", height: "auto", display: "block" }}
             />
-          </div>
+          </motion.div>
         </motion.section>
 
-        {/* GRATITUDE MESSAGE */}
+        {/* Community Intro */}
         <motion.section
-          className="content-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeInSlideUp}
-          style={{
-            maxWidth: "900px",
-            margin: "3rem auto",
-            padding: "0 2rem",
-            textAlign: "center",
-          }}
+          variants={itemVariants}
+          style={{ marginBottom: "4rem", textAlign: "center" }}
         >
-          <h2>Celebrating the Privacy Community</h2>
-
-          <p style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
-            This Christmas, we want to take a moment to celebrate the incredible
-            community of builders, innovators, and believers who are working to
-            make privacy a fundamental right in the digital world.
-          </p>
-
-          <p style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
-            Privacy is not just a feature—it's a value we share with remarkable
-            projects and teams across the blockchain ecosystem. Together, we're
-            building a future where people control their data, protect their
-            financial sovereignty, and transact with dignity.
-          </p>
-        </motion.section>
-
-        {/* SHOUTOUTS GRID */}
-        <motion.section
-          className="content-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.3 }}
-          variants={fadeInSlideUp}
-          style={{
-            maxWidth: "1000px",
-            margin: "3rem auto",
-            padding: "0 2rem",
-          }}
-        >
-          <h2 style={{ textAlign: "center", marginBottom: "2rem" }}>
-            Merry Christmas To Our Fellow Builders
+          <h2
+            style={{
+              fontSize: "1.8rem",
+              fontWeight: "750",
+              marginBottom: "1.5rem",
+            }}
+          >
+            Celebrating the Privacy Community
           </h2>
+          <p
+            style={{ color: TEXT_DIM, fontSize: "1.05rem", lineHeight: "1.8" }}
+          >
+            Privacy is not just a feature—it's a fundamental right. Together
+            with remarkable projects across the blockchain ecosystem, we're
+            building a future where people control their data and protect their
+            financial sovereignty.
+          </p>
+        </motion.section>
 
+        {/* Fellow Builders Grid */}
+        <motion.section
+          variants={itemVariants}
+          style={{ marginBottom: "5rem" }}
+        >
+          <h3
+            style={{
+              fontSize: "1.3rem",
+              fontWeight: "700",
+              marginBottom: "2rem",
+              textAlign: "center",
+              color: EMERALD,
+            }}
+          >
+            Merry Christmas To Our Fellow Builders
+          </h3>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: "1.5rem",
-              marginTop: "2rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: "1.25rem",
             }}
           >
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                padding: "2rem",
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "12px",
-                border: "1px solid rgba(12, 229, 12, 0.2)",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <h3 style={{ color: "#0ce50c", marginBottom: "0.5rem" }}>Aleo</h3>
-              <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                For pioneering zero-knowledge technology that makes privacy
-                practical at scale
-              </p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                padding: "2rem",
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "12px",
-                border: "1px solid rgba(0, 82, 255, 0.2)",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <h3 style={{ color: "#0052ff", marginBottom: "0.5rem" }}>Base</h3>
-              <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                For building an accessible Layer 2 that brings blockchain to
-                everyone
-              </p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                padding: "2rem",
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "12px",
-                border: "1px solid rgba(139, 92, 246, 0.2)",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <h3 style={{ color: "#8b5cf6", marginBottom: "0.5rem" }}>
-                zkSync
-              </h3>
-              <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                For advancing ZK rollups and making Ethereum more scalable
-              </p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                padding: "2rem",
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "12px",
-                border: "1px solid rgba(255, 107, 107, 0.2)",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <h3 style={{ color: "#ff6b6b", marginBottom: "0.5rem" }}>
-                Scroll
-              </h3>
-              <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                For pushing the boundaries of ZK-EVM technology
-              </p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                padding: "2rem",
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "12px",
-                border: "1px solid rgba(236, 72, 153, 0.2)",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <h3 style={{ color: "#ec4899", marginBottom: "0.5rem" }}>
-                Starknet
-              </h3>
-              <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                For innovating with STARK proofs and Cairo language
-              </p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                padding: "2rem",
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "12px",
-                border: "1px solid rgba(34, 197, 94, 0.2)",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <h3 style={{ color: "#22c55e", marginBottom: "0.5rem" }}>
-                Verza
-              </h3>
-              <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                For contributing to the privacy ecosystem
-              </p>
-            </motion.div>
+            {shoutouts.map((item) => (
+              <motion.div
+                key={item.name}
+                whileHover={{
+                  y: -8,
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  borderColor: item.color,
+                }}
+                style={{
+                  padding: "2rem",
+                  borderRadius: "24px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: `1px solid ${BORDER_SUBTLE}`,
+                  transition: "all 0.4s ease",
+                }}
+              >
+                <div
+                  style={{
+                    color: item.color,
+                    fontWeight: "800",
+                    fontSize: "1.1rem",
+                    marginBottom: "0.6rem",
+                  }}
+                >
+                  {item.name}
+                </div>
+                <p
+                  style={{
+                    color: TEXT_DIM,
+                    fontSize: "0.9rem",
+                    lineHeight: "1.6",
+                  }}
+                >
+                  {item.desc}
+                </p>
+              </motion.div>
+            ))}
           </div>
-
           <p
             style={{
               textAlign: "center",
+              color: "white",
               marginTop: "2rem",
-              fontSize: "1.1rem",
-              fontStyle: "italic",
-              color: "rgba(255, 255, 255, 0.8)",
+              fontSize: "0.95rem",
             }}
           >
-            ...and many more incredible teams building the future of privacy and
-            decentralization.
+            ...and many more incredible teams building the future of privacy.
           </p>
         </motion.section>
 
-        {/* COMMUNITY MESSAGE */}
+        {/* Building Together Vision */}
         <motion.section
-          className="content-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeInSlideUp}
-          style={{
-            maxWidth: "800px",
-            margin: "3rem auto",
-            padding: "0 2rem",
-            textAlign: "center",
-          }}
-        >
-          <h2>Building Together</h2>
-
-          <p style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
-            The future of blockchain isn't about competition—it's about
-            collaboration. Every project advancing privacy, scalability, or
-            accessibility makes the entire ecosystem stronger.
-          </p>
-
-          <p style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
-            PENXCHAIN exists because of the groundbreaking work done by teams
-            like Aleo, Base, and countless others. We're grateful to be part of
-            a community that shares our values and pushes the boundaries of
-            what's possible.
-          </p>
-
-          <p style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
-            This Christmas, we celebrate not just our own progress but the
-            collective effort of everyone working toward a more private,
-            decentralized, and human-centered digital future.
-          </p>
-        </motion.section>
-
-        {/* FESTIVE CTA */}
-        <motion.section
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeInSlideUp}
-          style={{
-            maxWidth: "700px",
-            margin: "3rem auto",
-            padding: "0 2rem",
-          }}
+          variants={itemVariants}
+          style={{ marginBottom: "5rem" }}
         >
           <div
             style={{
-              padding: "3rem 2rem",
-              background:
-                "linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(34, 197, 94, 0.1))",
-              borderRadius: "16px",
-              border: "2px solid rgba(220, 38, 38, 0.3)",
+              padding: "4rem 2rem",
+              borderRadius: "32px",
+              background: `linear-gradient(145deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%)`,
+              border: `1px solid ${BORDER_SUBTLE}`,
               textAlign: "center",
             }}
           >
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🎁</div>
-            <h3
+            <h2
               style={{
-                color: "#dc2626",
-                fontSize: "1.5rem",
-                marginBottom: "1rem",
+                fontSize: "2rem",
+                marginBottom: "1.5rem",
+                fontWeight: "750",
               }}
             >
-              Here's to 2025
-            </h3>
+              Building Together
+            </h2>
             <p
               style={{
-                marginBottom: "1.5rem",
+                color: "rgba(255,255,255,0.8)",
                 fontSize: "1.1rem",
                 lineHeight: "1.8",
+                marginBottom: "2rem",
               }}
             >
-              May the new year bring privacy, prosperity, and freedom to
-              everyone in the blockchain community. Let's continue building
-              systems that serve humanity, not the other way around.
+              The future of blockchain isn't about competition—it's about{" "}
+              <strong>collaboration</strong>. Every project advancing privacy
+              makes the entire ecosystem stronger.
             </p>
-            <p
+
+            {/* Shaking Gift Box */}
+            <motion.div
+              onClick={handleGiftClick}
+              animate={!giftClaimed ? { rotate: [0, -10, 10, -10, 10, 0] } : {}}
+              transition={
+                !giftClaimed
+                  ? { duration: 0.5, repeat: Infinity, repeatDelay: 2 }
+                  : {}
+              }
               style={{
-                fontSize: "1.3rem",
-                fontWeight: "600",
-                color: "#22c55e",
+                fontSize: "4rem",
+                cursor: giftClaimed ? "default" : "pointer",
+                display: "inline-block",
+                filter: "drop-shadow(0 0 15px rgba(239, 68, 68, 0.3))",
               }}
             >
-              Merry Christmas & Happy Holidays! 🎄
-            </p>
+              {giftClaimed ? "🎊" : "🎁"}
+            </motion.div>
           </div>
         </motion.section>
 
-        {/* LINKS TO ECOSYSTEM */}
-        <motion.section
-          className="content-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeInSlideUp}
-          style={{
-            maxWidth: "800px",
-            margin: "3rem auto",
-            padding: "0 2rem",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ fontSize: "1rem", opacity: 0.8, lineHeight: "1.8" }}>
-            While you're here, explore how PENXCHAIN is contributing to the
-            privacy ecosystem. Try the{" "}
-            <Link href="/penxchain-wallet" style={{ color: "#0ce50c" }}>
-              PENXCHAIN Wallet
-            </Link>
-            , discover{" "}
-            <Link href="/penxpay" style={{ color: "#0ce50c" }}>
-              PENXPAY
-            </Link>{" "}
-            for private transactions, or read about our{" "}
-            <Link
-              href="/blog/connecting-with-base"
-              style={{ color: "#00bfff" }}
-            >
-              hybrid architecture
-            </Link>{" "}
-            connecting Aleo and Base.
-          </p>
-        </motion.section>
-
-        {/* Like Button Section */}
-        <div
-          style={{
-            maxWidth: "300px",
-            margin: "0 auto 2rem",
-            padding: "0 2rem",
-            position: "relative",
-          }}
-        >
-          <div
+        {/* 2025 Vision & Links */}
+        <motion.section variants={itemVariants} style={{ textAlign: "center" }}>
+          <h2
             style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: "1rem",
-              padding: "1.5rem",
-              background: "rgba(255, 255, 255, 0.03)",
-              borderRadius: "16px",
-              border: "1px solid rgba(255, 255, 255, 0.05)",
+              fontSize: "2rem",
+              fontWeight: "800",
+              marginBottom: "1rem",
             }}
           >
-            <button
-              onClick={handleLike}
+            Here's to 2025
+          </h2>
+          <p
+            style={{
+              color: TEXT_DIM,
+              fontSize: "1.1rem",
+              lineHeight: "1.7",
+              marginBottom: "3.5rem",
+            }}
+          >
+            May the new year bring privacy, prosperity, and freedom to everyone.
+            Let's continue building systems that serve humanity.
+          </p>
+
+          <div
+            style={{
+              padding: "2.5rem",
+              borderRadius: "28px",
+              background: "rgba(255,255,255,0.02)",
+              border: `1px solid ${BORDER_SUBTLE}`,
+              marginBottom: "4rem",
+            }}
+          >
+            <p
+              style={{
+                color: TEXT_DIM,
+                marginBottom: "2rem",
+                fontSize: "0.95rem",
+              }}
+            >
+              Explore how PENXCHAIN contributes to the privacy ecosystem:
+            </p>
+            <div
               style={{
                 display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: "25px",
+              }}
+            >
+              {[
+                { name: "PENXCHAIN Wallet", href: "/wallet" },
+                { name: "PENXPAY", href: "/pay" },
+                {
+                  name: "Hybrid Architecture",
+                  href: "/blog/connecting-with-base-hybrid-blockchain",
+                },
+              ].map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  style={{
+                    color: EMERALD,
+                    fontWeight: "600",
+                    textDecoration: "none",
+                    borderBottom: `2px solid transparent`,
+                    transition: "0.3s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.borderBottomColor = EMERALD)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.borderBottomColor = "transparent")
+                  }
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div
+            style={{
+              fontSize: "1.1rem",
+              fontWeight: "600",
+              marginBottom: "3rem",
+            }}
+          >
+            Merry Christmas & Happy Holidays! 🎄
+          </div>
+
+          {/* Restored Like Interaction */}
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLike}
+              style={{
+                display: "inline-flex",
                 alignItems: "center",
-                gap: "0.5rem",
+                gap: "12px",
+                padding: "16px 36px",
                 background: isLiked
-                  ? "rgba(255, 107, 107, 0.15)"
-                  : "transparent",
-                border: `2px solid ${
-                  isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.1)"
-                }`,
-                padding: "0.75rem 1.5rem",
-                borderRadius: "50px",
-                color: isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.7)",
+                  ? "rgba(239, 68, 68, 0.15)"
+                  : "rgba(255,255,255,0.05)",
+                border: `1.5px solid ${isLiked ? RUBY : BORDER_SUBTLE}`,
+                borderRadius: "100px",
+                color: isLiked ? RUBY : "#fff",
+                cursor: "pointer",
                 fontSize: "1rem",
                 fontWeight: "600",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                position: "relative",
-                overflow: "visible",
-              }}
-              onMouseEnter={(e) => {
-                if (!isLiked) {
-                  e.currentTarget.style.background = "rgba(255, 107, 107, 0.1)";
-                  e.currentTarget.style.borderColor = "#ff6b6b";
-                  e.currentTarget.style.color = "#ff6b6b";
-                  e.currentTarget.style.transform = "scale(1.05)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isLiked) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor =
-                    "rgba(255, 255, 255, 0.1)";
-                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-                  e.currentTarget.style.transform = "scale(1)";
-                }
+                backdropFilter: "blur(8px)",
               }}
             >
               <svg
-                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill={isLiked ? "currentColor" : "none"}
                 stroke="currentColor"
-                strokeWidth="2"
-                style={{ width: "24px", height: "24px" }}
+                strokeWidth="2.5"
               >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
-              {likeCount > 0 && <span>{likeCount}</span>}
-            </button>
-            <span
-              style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.9rem" }}
-            >
-              {isLiked ? "You liked this" : "Like this post"}
-            </span>
-          </div>
+              {isLiked ? `Loved by ${likeCount}` : "Send Love"}
+            </motion.button>
 
-          {/* Falling Hearts Animation */}
-          <AnimatePresence>
-            {hearts.map((heart) => (
-              <motion.div
-                key={heart.id}
-                initial={{
-                  opacity: 1,
-                  y: 0,
-                  x: heart.x,
-                  scale: 0,
-                  rotate: 0,
-                }}
-                animate={{
-                  opacity: 0,
-                  y: -150,
-                  x: heart.x + heart.drift,
-                  scale: 1,
-                  rotate: heart.rotation,
-                }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: heart.duration,
-                  delay: heart.delay,
-                  ease: [0.25, 0.46, 0.45, 0.94],
-                }}
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  pointerEvents: "none",
-                  zIndex: 1000,
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="#ff6b6b"
+            <AnimatePresence>
+              {hearts.map((h) => (
+                <motion.div
+                  key={h.id}
+                  initial={{ opacity: 1, y: 0, x: h.x, scale: 0 }}
+                  animate={{
+                    opacity: 0,
+                    y: -160,
+                    x: h.x + h.drift,
+                    scale: 1.3,
+                    rotate: h.rotation,
+                  }}
+                  transition={{
+                    duration: h.duration,
+                    delay: h.delay,
+                    ease: "easeOut",
+                  }}
                   style={{
-                    width: `${heart.size}px`,
-                    height: `${heart.size}px`,
-                    filter: "drop-shadow(0 2px 4px rgba(255, 107, 107, 0.3))",
+                    position: "absolute",
+                    left: "50%",
+                    top: "0",
+                    pointerEvents: "none",
                   }}
                 >
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      </article>
+                  <svg
+                    width={h.size}
+                    height={h.size}
+                    viewBox="0 0 24 24"
+                    fill={RUBY}
+                    style={{ filter: `drop-shadow(0 0 8px ${RUBY}66)` }}
+                  >
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </motion.section>
+      </motion.article>
     </main>
   );
 }
