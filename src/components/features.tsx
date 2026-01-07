@@ -74,7 +74,7 @@ export default function Features() {
   return (
     <section className="relative w-full py-32 bg-penx-bg overflow-hidden">
       {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 blur-[120px] rounded-full z-0 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-blue-900/10 blur-[120px] rounded-full z-0 pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Header */}
@@ -88,7 +88,7 @@ export default function Features() {
         >
           <h2 className="font-space font-bold text-4xl md:text-5xl text-white mb-6 tracking-tight drop-shadow-lg">
             What Makes{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-700">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-blue-700">
               PENXCHAIN
             </span>{" "}
             Different
@@ -116,7 +116,7 @@ export default function Features() {
               // FIX 3: Changed h-[500px] to min-h-[450px] md:h-[500px].
               // This makes it responsive. It won't overflow small screens, but keeps the look on desktop.
               // 'will-change-transform' optimizes the blur rendering performance.
-              className={`flex min-h-[450px] md:h-[500px] ${feature.className} will-change-transform`}
+              className={`flex min-h-112.5 md:h-125 ${feature.className} will-change-transform`}
             >
               <SpotlightCard className="w-full h-full flex flex-col justify-between group">
                 {/* Top: Text Content */}
@@ -135,9 +135,9 @@ export default function Features() {
                 </div>
 
                 {/* Bottom: Image Stage */}
-                <div className="relative w-full h-[240px] md:h-[280px] mt-auto overflow-hidden rounded-b-3xl">
+                <div className="relative w-full h-60 md:h-70 mt-auto overflow-hidden rounded-b-3xl">
                   {/* Gradient Overlay */}
-                  <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#0D0B24] via-transparent to-transparent opacity-90" />
+                  <div className="absolute inset-0 z-10 bg-linear-to-t from-[#0D0B24] via-transparent to-transparent opacity-90" />
 
                   <Image
                     src={feature.imageSrc}

@@ -256,9 +256,12 @@ export default function Navbar() {
         }`}
       >
         <div className="flex flex-col h-full">
-          <div className="h-28 shrink-0" />
+          {/* Top Spacer - slightly reduced from h-28 to h-24 so items aren't pushed too low */}
+          <div className="h-24 shrink-0" />
+
+          {/* Scrollable Container for Links AND Button */}
           <div
-            className="flex-1 overflow-y-auto overflow-x-hidden px-6"
+            className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-12"
             style={{
               WebkitOverflowScrolling: "touch",
               overscrollBehavior: "contain",
@@ -294,11 +297,10 @@ export default function Navbar() {
                 );
               })}
             </nav>
-          </div>
 
-          <div className="shrink-0 px-6 pb-8 pt-4 bg-linear-to-t from-[#0A0822] via-[#0A0822] to-transparent">
+            {/* Mobile Button - Moved inside the scroll container */}
             <div
-              className="flex flex-col gap-4 w-full transition-all duration-700 delay-500 ease-out"
+              className="mt-8 transition-all duration-700 delay-500 ease-out"
               style={{
                 opacity: isOpen ? 1 : 0,
                 transform: isOpen ? "translateY(0)" : "translateY(20px)",
@@ -307,7 +309,7 @@ export default function Navbar() {
               <button
                 onClick={() => handleSmartDownload(router)}
                 className="flex items-center justify-center gap-2.5 bg-[#2547D0] hover:bg-[#1e3a8a] text-white rounded-2xl text-base font-semibold w-full transition-all shadow-lg shadow-blue-900/30 active:scale-95"
-                style={{ height: "44px", padding: "10px" }}
+                style={{ height: "48px", padding: "10px" }}
               >
                 <ArrowDownToLine size={20} />
                 Download Wallet

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -78,6 +79,14 @@ const cardVariants = {
 };
 
 export default function Roadmap() {
+  // State to track which card is currently "active" (clicked)
+  const [activeCard, setActiveCard] = useState<number | null>(null);
+
+  const handleCardClick = (index: number) => {
+    // If clicking the same card, close it. Otherwise, open the new one.
+    setActiveCard(activeCard === index ? null : index);
+  };
+
   return (
     <section
       id="roadmap"
@@ -107,43 +116,82 @@ export default function Roadmap() {
           viewport={{ once: true, margin: "-100px" }}
           className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8"
         >
-          {roadmapItems.map((item, index) => (
-            <motion.div
-              key={index}
-              variants={cardVariants}
-              whileHover={{ y: -5, transition: { duration: 0.3 } }}
-              className={`relative overflow-hidden rounded-4xl border border-[#3C3970]/50 bg-[#0A0D1F]/60 backdrop-blur-md p-8 md:p-10 min-h-80 flex flex-col justify-between group ${item.colSpan}`}
-            >
-              {/* Watermark Number */}
-              <div className="absolute -right-8 -bottom-20 font-space font-bold text-[240px] md:text-[280px] leading-none text-[#3C3970] select-none pointer-events-none group-hover:text-[#3C3970]/20 group-hover:-translate-x-4 transition-all duration-700 ease-out">
-                {item.number}
-              </div>
+          {roadmapItems.map((item, index) => {
+            const isActive = activeCard === index;
 
-              <div
-                className={`absolute inset-0 bg-linear-to-br ${item.gradient} opacity-50 z-0`}
-              />
-
-              <div className="relative z-10">
-                <div className="mb-6">
-                  <span className="inline-block bg-[#3C3970]/30 border border-[#3C3970] text-blue-100 px-5 py-2 rounded-lg text-sm font-bold tracking-wider uppercase backdrop-blur-sm shadow-[0_0_15px_rgba(60,57,112,0.2)]">
-                    {item.quarter}
-                  </span>
+            return (
+              <motion.div
+                key={index}
+                variants={cardVariants}
+                // Handle interaction:
+                // 1. whileHover works for mouse
+                // 2. animate handles the click state (y: -5) OR falls back to undefined (inheriting "visible" variant)
+                whileHover={{ y: -5, transition: { duration: 0.3 } }}
+                animate={isActive ? { y: -5 } : undefined}
+                onClick={() => handleCardClick(index)}
+                className={`relative overflow-hidden rounded-4xl border cursor-pointer transition-colors duration-500 
+                  ${
+                    isActive
+                      ? "border-[#3C3970] bg-[#12152e]/80"
+                      : "border-[#3C3970]/50 bg-[#0A0D1F]/60"
+                  } 
+                  backdrop-blur-md p-8 md:p-10 min-h-80 flex flex-col justify-between group ${
+                    item.colSpan
+                  }`}
+              >
+                {/* Watermark Number */}
+                <div
+                  className={`absolute -right-8 -bottom-20 font-space font-bold text-[240px] md:text-[280px] leading-none text-[#3C3970] select-none pointer-events-none transition-all duration-700 ease-out 
+                  ${
+                    isActive
+                      ? "text-[#3C3970]/20 -translate-x-4"
+                      : "group-hover:text-[#3C3970]/20 group-hover:-translate-x-4"
+                  }`}
+                >
+                  {item.number}
                 </div>
 
-                {/* Checklist Items */}
-                <div className="flex flex-col gap-4">
-                  {item.items.map((text, i) => (
-                    <div key={i} className="flex items-start gap-3 group/item">
-                      <CheckCircle2 className="w-5 h-5 text-blue-400 shrink-0 mt-0.5 group-hover/item:text-blue-300 transition-colors" />
-                      <span className="font-jakarta text-gray-300 text-base md:text-lg leading-snug group-hover/item:text-white transition-colors">
-                        {text}
-                      </span>
-                    </div>
-                  ))}
+                <div
+                  className={`absolute inset-0 bg-linear-to-br ${item.gradient} opacity-50 z-0`}
+                />
+
+                <div className="relative z-10">
+                  <div className="mb-6">
+                    <span className="inline-block bg-[#3C3970]/30 border border-[#3C3970] text-blue-100 px-5 py-2 rounded-lg text-sm font-bold tracking-wider uppercase backdrop-blur-sm shadow-[0_0_15px_rgba(60,57,112,0.2)]">
+                      {item.quarter}
+                    </span>
+                  </div>
+
+                  {/* Checklist Items */}
+                  <div className="flex flex-col gap-4">
+                    {item.items.map((text, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 group/item"
+                      >
+                        <CheckCircle2
+                          className={`w-5 h-5 shrink-0 mt-0.5 transition-colors ${
+                            isActive
+                              ? "text-blue-300"
+                              : "text-blue-400 group-hover/item:text-blue-300"
+                          }`}
+                        />
+                        <span
+                          className={`font-jakarta text-base md:text-lg leading-snug transition-colors ${
+                            isActive
+                              ? "text-white"
+                              : "text-gray-300 group-hover/item:text-white"
+                          }`}
+                        >
+                          {text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
     </section>
