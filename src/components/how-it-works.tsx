@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Rocket, ShieldCheck, Lock, Code2 } from "lucide-react";
 import { motion, easeOut } from "framer-motion";
 
-// --- DATA ---
+// DATA
 const features = [
   {
     title: "High-Speed Consensus",
@@ -31,8 +31,6 @@ const features = [
     icon: Code2,
   },
 ];
-
-// --- VARIANTS ---
 
 const containerVariants = {
   hidden: {},
@@ -123,7 +121,6 @@ export default function HowItWorks() {
                 whileHover={{ y: -4 }}
                 className="relative p-6 md:p-6 2xl:p-7 border-b border-white/5 last:border-b-0 bg-white/1 hover:bg-white/3 transition-colors"
               >
-                {/* ICON TOP RIGHT */}
                 <motion.div
                   variants={iconVariants}
                   className="absolute top-5 right-5 w-10 h-10 rounded-xl bg-[#131426] border border-white/10 flex items-center justify-center text-slate-400"

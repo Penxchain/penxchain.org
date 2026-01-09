@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react"; // 1. Import useState
 import Image from "next/image";
 import { motion } from "framer-motion";
 
@@ -15,13 +16,8 @@ const teamMembers = [
     image: "/team-natasha.png",
   },
   {
-    name: "God’swill Akpan",
-    role: "Founder & Product Visionary",
-    image: "/team-godswill.png",
-  },
-  {
     name: "Emmanuel Oluwafemi Joseph",
-    role: "Co-founder and CMO",
+    role: "Co-founder and CTO",
     image: "/team-joseph.png",
   },
 ];
@@ -39,13 +35,13 @@ const containerVariants = {
 const cardVariants = {
   hidden: {
     opacity: 0,
-    y: -80, 
+    y: -80,
     scale: 0.9,
     filter: "blur(20px)",
   },
   visible: {
     opacity: 1,
-    y: 0, 
+    y: 0,
     scale: 1,
     filter: "blur(0px)",
     transition: {
@@ -56,6 +52,13 @@ const cardVariants = {
 };
 
 export default function Team() {
+  // 2. State for click interaction
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const handleMemberClick = (index: number) => {
+    setActiveIndex(activeIndex === index ? null : index);
+  };
+
   return (
     <section className="relative w-full py-24 bg-penx-bg overflow-hidden">
       <div className="relative z-10 max-w-7xl mx-auto px-6">
@@ -81,38 +84,72 @@ export default function Team() {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }} // Triggers slightly before element hits screen center
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10"
+          viewport={{ once: true, margin: "-50px" }}
+          // 3. FIX: Changed lg:grid-cols-4 to lg:grid-cols-3 to center the 3 members perfectly
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10"
         >
-          {teamMembers.map((member, index) => (
-            <motion.div
-              key={index}
-              variants={cardVariants}
-              className="group flex flex-col"
-            >
-              <div className="relative w-full aspect-4/5 rounded-4xl border-2 border-[#2547D0] overflow-hidden bg-blue-900/10 mb-6 transition-all duration-500 group-hover:shadow-[0_0_40px_rgba(37,71,208,0.5)] group-hover:border-blue-300">
-                <Image
-                  src={member.image}
-                  alt={member.name}
-                  fill
-                  className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                />
+          {teamMembers.map((member, index) => {
+            const isActive = activeIndex === index;
 
-                <div className="absolute inset-0 bg-linear-to-t from-[#0A0D1F]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              </div>
+            return (
+              <motion.div
+                key={index}
+                variants={cardVariants}
+                onClick={() => handleMemberClick(index)} // 4. Add click handler
+                className="group flex flex-col cursor-pointer"
+              >
+                {/* Image Container */}
+                <div
+                  className={`relative w-full aspect-4/5 rounded-4xl border-2 overflow-hidden bg-blue-900/10 mb-6 transition-all duration-500 ${
+                    isActive
+                      ? "shadow-[0_0_40px_rgba(37,71,208,0.5)] border-blue-300" // Active styles
+                      : "border-[#2547D0] group-hover:shadow-[0_0_40px_rgba(37,71,208,0.5)] group-hover:border-blue-300" // Hover styles
+                  }`}
+                >
+                  <Image
+                    src={member.image}
+                    alt={member.name}
+                    fill
+                    className={`object-cover transition-transform duration-1000 ease-out ${
+                      isActive ? "scale-105" : "group-hover:scale-105"
+                    }`}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
 
-              {/* TEXT CONTENT */}
-              <div className="text-left px-2">
-                <h3 className="font-space font-bold text-xl md:text-2xl text-white mb-2 leading-tight group-hover:text-blue-400 transition-colors duration-300">
-                  {member.name}
-                </h3>
-                <p className="font-jakarta text-gray-400 text-sm md:text-base leading-relaxed font-medium group-hover:text-gray-200 transition-colors">
-                  {member.role}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+                  {/* Gradient Overlay */}
+                  <div
+                    className={`absolute inset-0 bg-linear-to-t from-[#0A0D1F]/80 via-transparent to-transparent transition-opacity duration-500 ${
+                      isActive
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  />
+                </div>
+
+                {/* TEXT CONTENT */}
+                <div className="text-left px-2">
+                  <h3
+                    className={`font-space font-bold text-xl md:text-2xl mb-2 leading-tight transition-colors duration-300 ${
+                      isActive
+                        ? "text-blue-400"
+                        : "text-white group-hover:text-blue-400"
+                    }`}
+                  >
+                    {member.name}
+                  </h3>
+                  <p
+                    className={`font-jakarta text-sm md:text-base leading-relaxed font-medium transition-colors ${
+                      isActive
+                        ? "text-gray-200"
+                        : "text-gray-400 group-hover:text-gray-200"
+                    }`}
+                  >
+                    {member.role}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
     </section>

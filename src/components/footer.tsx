@@ -29,7 +29,7 @@ const footerLinks: Record<string, FooterLink[]> = {
       label: "Download Marketplace",
       href: "/marketplace/coming-soon",
     },
-    { label: "Token", href: "#" },
+    { label: "Token", href: "/" },
     { label: "Roadmap", href: "#roadmap" },
   ],
   Resources: [
@@ -80,7 +80,7 @@ export default function Footer() {
       <div className="absolute -top-50 left-1/2 -translate-x-1/2 w-150 h-100 bg-[#2547D0]/10 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
-        {/* --- TOP ROW: LOGO & LINKS --- */}
+        {/* TOP ROW - Logo & Links */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 mb-16">
           {/* LOGO COLUMN */}
           <div className="lg:col-span-6 flex flex-col items-start">
@@ -159,7 +159,7 @@ export default function Footer() {
         {/* DIVIDER */}
         <div className="w-full h-px bg-linear-to-r from-transparent via-[#2547D0]/30 to-transparent mb-8" />
 
-        {/* BOTTOM ROW: COPYRIGHT */}
+        {/* BOTTOM ROW */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <p className="font-jakarta text-blue-200/40 text-sm">
             © {currentYear} Penxchain. All rights reserved.

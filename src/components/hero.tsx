@@ -22,7 +22,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative w-full min-h-[100svh] flex flex-col overflow-y-auto pt-24 md:pt-28 pb-16 transition-all">
+    <section className="relative w-full min-h-svh flex flex-col overflow-y-auto pt-24 md:pt-28 pb-16 transition-all">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <Image
