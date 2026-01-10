@@ -30,12 +30,9 @@ export default function Waitlist() {
 
       if (response.ok) {
         setStatus("success");
-        setEmail(""); // Clear the field
-        // Optional: Reset to idle after 5 seconds so they can submit again if needed?
-        // Or keep it success to show they are done.
+        setEmail("");
       } else {
         setStatus("error");
-        // Reset error after 3 seconds so they can try again
         setTimeout(() => setStatus("idle"), 3000);
       }
     } catch (error) {
@@ -54,7 +51,7 @@ export default function Waitlist() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-150 bg-blue-900/10 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-        {/* --- HEADER --- */}
+        {/* HEADER */}
         <motion.div
           initial={{ opacity: 0, y: 30, filter: "blur(15px)" }}
           whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -74,7 +71,6 @@ export default function Waitlist() {
           </p>
         </motion.div>
 
-        {/* --- THE FORM --- */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           whileInView={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
@@ -90,7 +86,7 @@ export default function Waitlist() {
               </div>
               <input
                 type="email"
-                name="email" // Formspree looks for 'name="email"' or 'name="_replyto"'
+                name="email"
                 placeholder="Enter Your Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -137,14 +133,12 @@ export default function Waitlist() {
                 )}
               </div>
 
-              {/* Button Shine Effect (Only when Idle) */}
               {status === "idle" && (
                 <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-linear-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 ease-in-out" />
               )}
             </button>
           </form>
 
-          {/* Privacy Note */}
           <p className="mt-6 text-gray-600 text-sm font-jakarta">
             No spam. Only essential updates. Unsubscribe anytime.
           </p>

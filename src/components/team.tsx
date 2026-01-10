@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react"; // 1. Import useState
+import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
@@ -52,7 +52,6 @@ const cardVariants = {
 };
 
 export default function Team() {
-  // 2. State for click interaction
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const handleMemberClick = (index: number) => {
@@ -85,7 +84,6 @@ export default function Team() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          // 3. FIX: Changed lg:grid-cols-4 to lg:grid-cols-3 to center the 3 members perfectly
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10"
         >
           {teamMembers.map((member, index) => {

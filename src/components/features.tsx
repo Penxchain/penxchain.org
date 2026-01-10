@@ -123,14 +123,11 @@ export default function Features() {
                 <div
                   className="w-full h-full flex flex-col justify-between group border border-white/10"
                   style={{
-                    // DARKER GRADIENT ADJUSTMENT:
-                    // Previous: #120848 (Too bright) -> New: #090424 (Deep Midnight Blue)
-                    // Bottom: #020410 (Dark) -> New: #000000 (Pure Black) for contrast
                     background:
-                      "linear-gradient(180deg, #090424 0%, #000000 100%)",
+                      "linear-gradient(180deg, #120848 0%, #020410 100%)",
                   }}
                 >
-                  {/* Top: Text Content */}
+                  {/* Text Content */}
                   <div
                     className={`p-8 md:p-10 z-20 relative transition-transform duration-500 ${
                       isActive ? "-translate-y-1" : "group-hover:-translate-y-1"
@@ -155,7 +152,7 @@ export default function Features() {
                     </p>
                   </div>
 
-                  {/* Bottom: Image Stage */}
+                  {/* Image Stage */}
                   <div className="relative w-full h-[240px] md:h-70 mt-auto overflow-hidden rounded-b-3xl z-0">
                     {/* Gradient Overlay */}
                     <div className="absolute inset-0 z-10 bg-linear-to-t from-[#0D0B24] via-transparent to-transparent opacity-80 pointer-events-none" />

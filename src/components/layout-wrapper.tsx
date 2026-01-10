@@ -14,26 +14,42 @@ export default function LayoutWrapper({
   const hideEverything =
     pathname.startsWith("/docs") || pathname.startsWith("/download");
 
-  const hideNavbarOnly = pathname === "/marketplace/coming-soon"
-  || pathname === "/blog/what-is-penxchain" 
-  || pathname === "/blog/zkp-penxchain" 
-  || pathname === "/blog/why-penxchain-exists"
-  || pathname === "/blog/ecosystem-overview-coming-soon"
-  || pathname === "/blog/penx-token-utility"
-  || pathname === "/blog/connecting-with-base-hybrid-blockchain"
-  || pathname === "/blog/merry-christmas-2025"
-  || pathname === "/blog/penxchain-wallet-overview"
-  || pathname === "/blog/penxchain-wallet-features";
-
-
+  // Pages where we previously hid the full navbar but we still
+  // want a compact navbar so users can get back to the real site
+  const hideNavbarOnly =
+    pathname === "/marketplace/coming-soon" ||
+    pathname === "/blog/what-is-penxchain" ||
+    pathname === "/blog/zkp-penxchain" ||
+    pathname === "/blog/why-penxchain-exists" ||
+    pathname === "/blog/ecosystem-overview-coming-soon" ||
+    pathname === "/blog/penx-token-utility" ||
+    pathname === "/blog/connecting-with-base-hybrid-blockchain" ||
+    pathname === "/blog/merry-christmas-2025" ||
+    pathname === "/blog/penxchain-wallet-overview" ||
+    pathname === "/blog/penxchain-wallet-features";
 
   // determine visibility
   const showFooter = !hideEverything;
-  const showNavbar = !hideEverything && !hideNavbarOnly;
+
+  // Show navbar everywhere except `hideEverything` pages.
+  // If page was previously in hideNavbarOnly, render a compact navbar
+  // so users can navigate back to the homepage and other important places.
+  const showNavbar = !hideEverything;
+  const navbarVariant: "full" | "compact" = hideNavbarOnly ? "compact" : "full";
+
+  // Decide whether the navbar should intercept anchor clicks for smooth scrolling.
+  // We only enable in-page smooth scrolling on the homepage (root path),
+  // because other pages should navigate back to "/" when clicking a "/#..." link.
+  const enableAnchorScroll = pathname === "/";
 
   return (
     <>
-      {showNavbar && <Navbar />}
+      {showNavbar && (
+        <Navbar
+          variant={navbarVariant}
+          enableAnchorScroll={enableAnchorScroll}
+        />
+      )}
 
       {children}
 

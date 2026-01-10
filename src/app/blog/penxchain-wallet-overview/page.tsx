@@ -45,21 +45,20 @@ export const metadata: Metadata = {
       },
     ],
   },
-
   twitter: {
     card: "summary_large_image",
     title: "PENXCHAIN Wallet — Privacy-First Self-Custodial Wallet",
     description:
       "Discover the PENXCHAIN Wallet: a privacy-first, self-custodial wallet using Zero-Knowledge Proofs for secure everyday payments.",
-    images: ["https://penxchain.org/blog-images/penxchain-wallet.jpg"],
+    // I matched this image to the OG image for consistency
+    images: ["https://penxchain.org/blog-images/penxchain-wallet-overview.jpg"],
     creator: "@penxchain",
     site: "@penxchain",
   },
-
   alternates: {
-    canonical: "https://penxchain.org/blog/penxchain-wallet",
+    // Fixed: Canonical should match the page URL to avoid SEO penalties
+    canonical: "https://penxchain.org/blog/penxchain-wallet-overview",
   },
-
   robots: {
     index: true,
     follow: true,
@@ -74,5 +73,45 @@ export const metadata: Metadata = {
 };
 
 export default function PenxchainWallet() {
-  return <WalletContent />;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What is the PENXCHAIN Wallet?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "The PENXCHAIN Wallet is a privacy-first, self-custodial cryptocurrency wallet. It allows users to store, swap, and transact digital assets using Zero-Knowledge Proofs to keep financial data private.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is the PENXCHAIN Wallet self-custodial?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes, PENXCHAIN is fully self-custodial. This means you hold your own private keys and have full control over your funds; the platform cannot access or freeze your assets.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How does the PENXCHAIN Wallet ensure privacy?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "The wallet uses Zero-Knowledge Proof (ZKP) technology to verify transactions without revealing the sender, receiver, or amount on the public ledger, ensuring your financial activity remains confidential.",
+        },
+      },
+    ],
+  };
+
+  return (
+    <>
+      {/* Inject Schema for Search Results */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <WalletContent />
+    </>
+  );
 }

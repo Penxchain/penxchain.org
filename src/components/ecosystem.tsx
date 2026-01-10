@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowDownToLine, ShoppingBag } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { handleSmartDownload } from "@/lib/downloadHelper";
 
 // DATA
@@ -38,26 +38,30 @@ const showcaseItems = [
   },
 ];
 
-// ANIMATION VARIANTS
-const staggerContainer = {
+// ANIMATION VARIANTS (NO BLUR)
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.2,
+      staggerChildren: 0.15,
       delayChildren: 0.1,
     },
   },
 };
 
-const blurUpVariant = {
-  hidden: { opacity: 0, y: 60, filter: "blur(12px)" },
+const fadeUpVariant: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 50,
+    scale: 0.96,
+  },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
+    scale: 1,
     transition: {
-      duration: 1.2,
+      duration: 0.9,
       ease: [0.22, 1, 0.36, 1] as const,
     },
   },
@@ -66,13 +70,13 @@ const blurUpVariant = {
 // --- COMPONENT: FRAMELESS INTERACTIVE DECK ---
 function InteractiveDeck({ images }: { images: string[] }) {
   const [activeIndex, setActiveIndex] = useState(1);
+  const leftPositions = ["0%", "25%", "50%"];
 
   return (
     <div className="relative w-full h-112.5 sm:h-137.5 flex items-center justify-center perspective-1000">
       <div className="relative w-[320px] sm:w-105 h-full flex items-center">
         {images.map((src, index) => {
           const isActive = activeIndex === index;
-          const leftPositions = ["0%", "25%", "50%"];
 
           return (
             <motion.div
@@ -81,16 +85,14 @@ function InteractiveDeck({ images }: { images: string[] }) {
               onClick={() => setActiveIndex(index)}
               animate={{
                 zIndex: isActive ? 100 : index * 10,
-                scale: isActive ? 1.05 : 0.95,
-                filter: isActive
-                  ? "brightness(1.05) contrast(1) blur(0px)"
-                  : "brightness(0.6) contrast(0.9) blur(2px)",
-                y: isActive ? -15 : 0,
+                scale: isActive ? 1.05 : 0.94,
+                y: isActive ? -18 : 0,
+                opacity: isActive ? 1 : 0.6,
               }}
               transition={{
                 type: "spring",
-                stiffness: 250,
-                damping: 25,
+                stiffness: 260,
+                damping: 26,
               }}
               className="absolute top-1/2 -translate-y-1/2 w-50 sm:w-62.5 cursor-pointer origin-center"
               style={{ left: leftPositions[index] }}
@@ -98,10 +100,10 @@ function InteractiveDeck({ images }: { images: string[] }) {
               <motion.div
                 animate={{
                   boxShadow: isActive
-                    ? "0 25px 50px -12px rgba(0,0,0,0.7)"
-                    : "0 10px 30px -10px rgba(0,0,0,0.5)",
+                    ? "0 30px 60px -15px rgba(0,0,0,0.75)"
+                    : "0 10px 25px -10px rgba(0,0,0,0.45)",
                 }}
-                className="relative aspect-9/19 rounded-3xl overflow-hidden bg-black/20 transition-shadow"
+                className="relative aspect-9/19 rounded-3xl overflow-hidden bg-black/20"
               >
                 <Image
                   src={src}
@@ -123,11 +125,11 @@ function InteractiveDeck({ images }: { images: string[] }) {
 
 // MAIN COMPONENT
 export default function Ecosystem() {
-  const router = useRouter(); // <--- 2. INITIALIZE ROUTER
+  const router = useRouter();
 
   return (
     <div className="w-full text-white overflow-hidden">
-      <div className="fixed inset-0 pointer-events-none opacity-[0.02] bg-[url('https://framerusercontent.com/images/rR6HYXBrMmX4cRpXfXUOvpvpB0.png')] bg-repeat z-50"></div>
+      <div className="fixed inset-0 pointer-events-none opacity-[0.02] bg-[url('https://framerusercontent.com/images/rR6HYXBrMmX4cRpXfXUOvpvpB0.png')] bg-repeat z-50" />
 
       <motion.div
         initial="hidden"
@@ -137,13 +139,14 @@ export default function Ecosystem() {
         className="pt-32 pb-16 text-center px-6 relative z-10"
       >
         <motion.h2
-          variants={blurUpVariant}
+          variants={fadeUpVariant}
           className="font-space font-bold text-4xl md:text-6xl mb-6 tracking-tight"
         >
           Ecosystem Showcase
         </motion.h2>
+
         <motion.p
-          variants={blurUpVariant}
+          variants={fadeUpVariant}
           className="font-jakarta text-gray-400 max-w-2xl mx-auto text-lg md:text-xl leading-relaxed"
         >
           A growing suite of products built on PENXCHAIN, designed to deliver
@@ -159,10 +162,8 @@ export default function Ecosystem() {
             key={item.id}
             className={`relative w-full py-24 md:py-32 px-6 md:px-12 ${item.bgColor}`}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 0.5, scale: 1 }}
-              transition={{ duration: 2, ease: "easeOut" }}
+            {/* STATIC GLOW (NO ANIMATION) */}
+            <div
               className={`absolute top-1/2 ${
                 isReversed ? "left-[-20%]" : "right-[-20%]"
               } -translate-y-1/2 w-150 h-150 md:w-200 md:h-200 ${
@@ -180,12 +181,12 @@ export default function Ecosystem() {
                   isReversed ? "lg:flex-row-reverse" : "lg:flex-row"
                 } items-center gap-16 lg:gap-24`}
               >
-                {/* TEXT CONTENT */}
+                {/* TEXT */}
                 <motion.div
-                  variants={blurUpVariant}
+                  variants={fadeUpVariant}
                   className="w-full lg:w-1/2 text-center lg:text-left"
                 >
-                  <h3 className="font-jakarta font-bold text-3xl  text-blue-400 uppercase mb-6 opacity-80">
+                  <h3 className="font-jakarta font-bold text-3xl text-blue-400 uppercase mb-6 opacity-80">
                     {item.title}
                   </h3>
 
@@ -215,9 +216,9 @@ export default function Ecosystem() {
                   </button>
                 </motion.div>
 
-                {/* IMAGE CONTENT */}
+                {/* IMAGES */}
                 <motion.div
-                  variants={blurUpVariant}
+                  variants={fadeUpVariant}
                   className="w-full lg:w-1/2 flex justify-center"
                 >
                   <InteractiveDeck images={item.images} />

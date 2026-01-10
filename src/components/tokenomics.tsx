@@ -117,7 +117,7 @@ export default function Tokenomics() {
             </div>
           </motion.div>
 
-          {/* HE STATS CARD (Right/Bottom) */}
+          {/* STATS CARD (Right/Bottom) */}
           <motion.div
             initial={{ opacity: 0, x: 50, filter: "blur(20px)" }}
             whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
