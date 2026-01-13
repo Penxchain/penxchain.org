@@ -32,10 +32,8 @@ export default function LayoutWrapper({
   const showFooter = !hideEverything;
 
   // Show navbar everywhere except `hideEverything` pages.
-  // If page was previously in hideNavbarOnly, render a compact navbar
-  // so users can navigate back to the homepage and other important places.
   const showNavbar = !hideEverything;
-  const navbarVariant: "full" | "compact" = hideNavbarOnly ? "compact" : "full";
+  
 
   // Decide whether the navbar should intercept anchor clicks for smooth scrolling.
   // We only enable in-page smooth scrolling on the homepage (root path),
@@ -46,7 +44,6 @@ export default function LayoutWrapper({
     <>
       {showNavbar && (
         <Navbar
-          variant={navbarVariant}
           enableAnchorScroll={enableAnchorScroll}
         />
       )}
