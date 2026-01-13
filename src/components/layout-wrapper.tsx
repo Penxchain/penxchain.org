@@ -11,42 +11,33 @@ export default function LayoutWrapper({
 }) {
   const pathname = usePathname();
 
+  // Pages where we previously hid the full navbar but we still
+  // want a compact navbar are removed. We now explicitly hide
+  // the navbar on individual blog post pages and on marketplace coming-soon.
+
+  // Pages where we still hide everything (docs and download pages)
   const hideEverything =
     pathname.startsWith("/docs") || pathname.startsWith("/download");
 
-  // Pages where we previously hid the full navbar but we still
-  // want a compact navbar so users can get back to the real site
+  // Hide navbar only for individual blog posts (paths like /blog/slug)
+  // and for the marketplace coming-soon page. The general /blog listing
+  // page will still show the navbar.
   const hideNavbarOnly =
-    pathname === "/marketplace/coming-soon" ||
-    pathname === "/blog/what-is-penxchain" ||
-    pathname === "/blog/zkp-penxchain" ||
-    pathname === "/blog/why-penxchain-exists" ||
-    pathname === "/blog/ecosystem-overview-coming-soon" ||
-    pathname === "/blog/penx-token-utility" ||
-    pathname === "/blog/connecting-with-base-hybrid-blockchain" ||
-    pathname === "/blog/merry-christmas-2025" ||
-    pathname === "/blog/penxchain-wallet-overview" ||
-    pathname === "/blog/penxchain-wallet-features";
+    (pathname.startsWith("/blog/") && pathname !== "/blog") ||
+    pathname === "/marketplace/coming-soon";
 
   // determine visibility
   const showFooter = !hideEverything;
 
-  // Show navbar everywhere except `hideEverything` pages.
-  const showNavbar = !hideEverything;
-  
+  // Show navbar everywhere except `hideEverything` pages or pages in `hideNavbarOnly`.
+  const showNavbar = !hideEverything && !hideNavbarOnly;
 
   // Decide whether the navbar should intercept anchor clicks for smooth scrolling.
-  // We only enable in-page smooth scrolling on the homepage (root path),
-  // because other pages should navigate back to "/" when clicking a "/#..." link.
   const enableAnchorScroll = pathname === "/";
 
   return (
     <>
-      {showNavbar && (
-        <Navbar
-          enableAnchorScroll={enableAnchorScroll}
-        />
-      )}
+      {showNavbar && <Navbar enableAnchorScroll={enableAnchorScroll} />}
 
       {children}
 
