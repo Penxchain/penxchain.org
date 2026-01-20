@@ -34,7 +34,7 @@ const footerLinks: Record<string, FooterLink[]> = {
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
-    { label: "Whitepaper", href: "/docs/PENXCHAIN-WHITEPAPER IDO.pdf" },
+    { label: "Whitepaper", href: "/docs/PENXCHAIN Tokenomics IDO UPDATED PRE-TGE.pdf" },
     { label: "Blogs", href: "/blog" },
     { label: "Github", href: "https://github.com/Penxchain" },
   ],

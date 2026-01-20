@@ -14,7 +14,6 @@ interface MenuButtonProps {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
-  accent?: string;
 }
 
 export default function ShareButtons({
@@ -26,9 +25,8 @@ export default function ShareButtons({
   const [showShareMenu, setShowShareMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const ACCENT_PRIMARY = "#10b981";
-  const GLASS_BG = "rgba(10, 10, 12, 0.9)";
-  const BORDER_SUBTLE = "rgba(255, 255, 255, 0.08)";
+  // Constants tailored for Tailwind arbitrary values where needed
+  // Primary Color: Emerald-500 (#10b981)
 
   const getShareUrl = () => {
     if (typeof window === "undefined") return "";
@@ -122,37 +120,19 @@ export default function ShareButtons({
   };
 
   return (
-    <div
-      style={{ position: "relative", display: "inline-block" }}
-      ref={menuRef}
-    >
-      {/* Main Trigger Button */}
+    <div className="relative inline-block" ref={menuRef}>
+      {/* Main Trigger Button - Size Reduced */}
       <motion.button
         onClick={() => setShowShareMenu(!showShareMenu)}
         whileHover={{
           scale: 1.02,
-          boxShadow: `0 0 25px rgba(16, 185, 129, 0.25)`,
-          borderColor: "rgba(16, 185, 129, 0.6)",
+          // Tailwind handles hover colors, Framer handles the physical scaling
         }}
         whileTap={{ scale: 0.98 }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "12px 25px",
-          background: "rgba(16, 185, 129, 0.05)",
-          border: `1px solid rgba(16, 185, 129, 0.3)`,
-          borderRadius: "16px",
-          color: ACCENT_PRIMARY,
-          fontSize: "1rem",
-          fontWeight: "600",
-          cursor: "pointer",
-          backdropFilter: "blur(12px)",
-          transition: "all 0.4s cubic-bezier(0.23, 1, 0.32, 1)",
-        }}
+        className="group flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm font-semibold text-emerald-500 backdrop-blur-md transition-all duration-300 hover:border-emerald-500/60 hover:shadow-[0_0_25px_rgba(16,185,129,0.25)]"
       >
-        <ShareIcon size={20} color={ACCENT_PRIMARY} />
-        <span style={{ letterSpacing: "-0.01em" }}>Share Blog</span>
+        <ShareIcon size={16} className="text-emerald-500" />
+        <span className="tracking-tight">Share Blog</span>
       </motion.button>
 
       {/* Share Menu Dropdown */}
@@ -163,20 +143,7 @@ export default function ShareButtons({
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: 8, scale: 0.95, filter: "blur(4px)" }}
             transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-            style={{
-              position: "absolute",
-              top: "calc(100% + 14px)",
-              right: 0,
-              width: "280px",
-              background: GLASS_BG,
-              backdropFilter: "blur(20px) saturate(160%)",
-              border: `1px solid ${BORDER_SUBTLE}`,
-              borderRadius: "24px",
-              padding: "10px",
-              boxShadow:
-                "0 30px 60px -12px rgba(0, 0, 0, 0.5), 0 18px 36px -18px rgba(0, 0, 0, 0.5)",
-              zIndex: 1000,
-            }}
+            className="absolute right-0 top-full z-50 mt-3.5 w-72 rounded-3xl border border-white/10 bg-[#0a0a0c]/90 p-2.5 shadow-2xl backdrop-blur-xl backdrop-saturate-150"
           >
             <motion.div
               initial="closed"
@@ -193,30 +160,17 @@ export default function ShareButtons({
                 active={copied}
                 icon={
                   copied ? (
-                    <CheckIcon color={ACCENT_PRIMARY} />
+                    <CheckIcon className="text-emerald-500" />
                   ) : (
-                    <LinkIcon color="rgba(255,255,255,0.6)" />
+                    <LinkIcon className="text-white/60" />
                   )
                 }
                 label={copied ? "Copied to clipboard" : "Copy article link"}
-                accent={ACCENT_PRIMARY}
               />
 
-              <div
-                style={{
-                  height: "1px",
-                  background: BORDER_SUBTLE,
-                  margin: "8px 10px",
-                }}
-              />
+              <div className="my-2 h-px bg-white/10 mx-2.5" />
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr",
-                  gap: "2px",
-                }}
-              >
+              <div className="grid grid-cols-1 gap-0.5">
                 {socialLinks.map((social) => (
                   <MenuButton
                     key={social.name}
@@ -230,16 +184,10 @@ export default function ShareButtons({
               {typeof navigator !== "undefined" &&
                 typeof navigator.share === "function" && (
                   <>
-                    <div
-                      style={{
-                        height: "1px",
-                        background: BORDER_SUBTLE,
-                        margin: "8px 10px",
-                      }}
-                    />
+                    <div className="my-2 h-px bg-white/10 mx-2.5" />
                     <MenuButton
                       onClick={handleNativeShare}
-                      icon={<MoreIcon color="rgba(255,255,255,0.6)" />}
+                      icon={<MoreIcon className="text-white/60" />}
                       label="More options"
                     />
                   </>
@@ -252,13 +200,7 @@ export default function ShareButtons({
   );
 }
 
-function MenuButton({
-  onClick,
-  icon,
-  label,
-  active = false,
-  accent = "white",
-}: MenuButtonProps) {
+function MenuButton({ onClick, icon, label, active = false }: MenuButtonProps) {
   return (
     <motion.button
       variants={{
@@ -266,57 +208,28 @@ function MenuButton({
         closed: { opacity: 0, x: -8 },
       }}
       onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "14px",
-        width: "100%",
-        padding: "12px 14px",
-        background: "transparent",
-        border: "none",
-        borderRadius: "14px",
-        color: active ? accent : "rgba(255, 255, 255, 0.7)",
-        fontSize: "0.92rem",
-        fontWeight: "500",
-        cursor: "pointer",
-        transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-        textAlign: "left",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-        e.currentTarget.style.color = "#fff";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        if (!active) e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-      }}
+      className={`flex w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-left text-[0.92rem] font-medium transition-colors hover:bg-white/5 hover:text-white ${
+        active ? "text-emerald-500" : "text-white/70"
+      }`}
     >
-      <span
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "20px",
-        }}
-      >
-        {icon}
-      </span>
+      <span className="flex w-5 items-center justify-center">{icon}</span>
       {label}
     </motion.button>
   );
 }
 
-// Icons with optional color props for better dynamic styling
-const ShareIcon = ({ size = 20, color = "currentColor" }) => (
+// Icons adjusted to accept className for styling
+const ShareIcon = ({ size = 20, className = "" }) => (
   <svg
     width={size}
     height={size}
     viewBox="0 0 24 24"
     fill="none"
-    stroke={color}
+    stroke="currentColor"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    className={className}
   >
     <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
     <polyline points="16 6 12 2 8 6" />
@@ -344,45 +257,48 @@ const LinkedInIcon = () => (
     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
   </svg>
 );
-const LinkIcon = ({ color = "currentColor" }) => (
+const LinkIcon = ({ className = "" }) => (
   <svg
     width="18"
     height="18"
     viewBox="0 0 24 24"
     fill="none"
-    stroke={color}
+    stroke="currentColor"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    className={className}
   >
     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
   </svg>
 );
-const CheckIcon = ({ color = "currentColor" }) => (
+const CheckIcon = ({ className = "" }) => (
   <svg
     width="18"
     height="18"
     viewBox="0 0 24 24"
     fill="none"
-    stroke={color}
+    stroke="currentColor"
     strokeWidth="3"
     strokeLinecap="round"
     strokeLinejoin="round"
+    className={className}
   >
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
-const MoreIcon = ({ color = "currentColor" }) => (
+const MoreIcon = ({ className = "" }) => (
   <svg
     width="18"
     height="18"
     viewBox="0 0 24 24"
     fill="none"
-    stroke={color}
+    stroke="currentColor"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    className={className}
   >
     <circle cx="12" cy="12" r="1" />
     <circle cx="19" cy="12" r="1" />
