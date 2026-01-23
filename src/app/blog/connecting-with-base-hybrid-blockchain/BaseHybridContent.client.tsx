@@ -1,9 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, Variants, AnimatePresence } from "framer-motion";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Lightbulb, Shield, Zap, ArrowRight, Link2 } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import ShareButtons from "@/components/ShareButtons";
+import * as THREE from "three";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 const fadeInSlideUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -32,26 +42,165 @@ interface Heart {
   drift: number;
 }
 
-export default function PenxTokenUtilityContent() {
-  const postId = "connecting-with-base-hybrid-blockchain";
+// Three.js Particle Network Component
+function ParticleNetwork() {
+  const meshRef = useRef<THREE.Points>(null);
+  const linesRef = useRef<THREE.LineSegments>(null);
 
-  const [isLiked, setIsLiked] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(`blog_liked_${postId}`) === "true";
+  const particleCount = typeof window !== "undefined" && window.innerWidth < 768 ? 30 : 60;
+
+  const particles = useMemo(() => {
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      positions[i3] = (Math.random() - 0.5) * 20;
+      positions[i3 + 1] = (Math.random() - 0.5) * 15;
+      positions[i3 + 2] = (Math.random() - 0.5) * 10;
+
+      velocities[i3] = (Math.random() - 0.5) * 0.02;
+      velocities[i3 + 1] = (Math.random() - 0.5) * 0.02;
+      velocities[i3 + 2] = (Math.random() - 0.5) * 0.02;
+
+      // Mix of green (Aleo) and blue (Base) colors
+      const isGreen = Math.random() > 0.5;
+      if (isGreen) {
+        colors[i3] = 0.047; // R for #0ce50c
+        colors[i3 + 1] = 0.898; // G
+        colors[i3 + 2] = 0.047; // B
+      } else {
+        colors[i3] = 0; // R for #0052ff
+        colors[i3 + 1] = 0.322; // G
+        colors[i3 + 2] = 1; // B
+      }
     }
-    return false;
+
+    return { positions, velocities, colors };
+  }, [particleCount]);
+
+  useFrame(() => {
+    if (meshRef.current && linesRef.current) {
+      const positions = meshRef.current.geometry.attributes.position.array as Float32Array;
+      const velocities = particles.velocities;
+
+      // Update particle positions
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        positions[i3] += velocities[i3];
+        positions[i3 + 1] += velocities[i3 + 1];
+        positions[i3 + 2] += velocities[i3 + 2];
+
+        // Bounce off boundaries
+        if (Math.abs(positions[i3]) > 10) velocities[i3] *= -1;
+        if (Math.abs(positions[i3 + 1]) > 7.5) velocities[i3 + 1] *= -1;
+        if (Math.abs(positions[i3 + 2]) > 5) velocities[i3 + 2] *= -1;
+      }
+
+      meshRef.current.geometry.attributes.position.needsUpdate = true;
+
+      // Draw connections between nearby particles
+      const linePositions: number[] = [];
+      const maxDistance = 3;
+
+      for (let i = 0; i < particleCount; i++) {
+        for (let j = i + 1; j < particleCount; j++) {
+          const i3 = i * 3;
+          const j3 = j * 3;
+          const dx = positions[i3] - positions[j3];
+          const dy = positions[i3 + 1] - positions[j3 + 1];
+          const dz = positions[i3 + 2] - positions[j3 + 2];
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          if (distance < maxDistance) {
+            linePositions.push(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+            linePositions.push(positions[j3], positions[j3 + 1], positions[j3 + 2]);
+          }
+        }
+      }
+
+      linesRef.current.geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(new Float32Array(linePositions), 3)
+      );
+    }
   });
 
-  const [likeCount, setLikeCount] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const count = localStorage.getItem(`blog_likes_${postId}`);
-      return count ? parseInt(count, 10) : 0;
-    }
-    return 0;
-  });
+  return (
+    <>
+      <points ref={meshRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[particles.positions, 3]}
+          />
+          <bufferAttribute
+            attach="attributes-color"
+            args={[particles.colors, 3]}
+          />
+        </bufferGeometry>
+        <pointsMaterial size={0.15} vertexColors transparent opacity={0.8} />
+      </points>
 
+      <lineSegments ref={linesRef}>
+        <bufferGeometry />
+        <lineBasicMaterial color="#8b5cf6" transparent opacity={0.2} />
+      </lineSegments>
+    </>
+  );
+}
+
+export default function BaseHybridContent() {
+  const postId = 5;
+  const postTitle = "Connecting with Base: PENXCHAIN's Hybrid Architecture";
+  const postSlug = "connecting-with-base";
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const [heartIdCounter, setHeartIdCounter] = useState(0);
+
+  const sectionsRef = useRef<(HTMLElement | null)[]>([]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setIsMounted(true);
+      const liked = localStorage.getItem(`blog_liked_${postId}`);
+      const count = localStorage.getItem(`blog_likes_${postId}`);
+      setIsLiked(liked === "true");
+      setLikeCount(count ? parseInt(count, 10) : 0);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [postId]);
+
+  // GSAP Scroll Animations
+  useEffect(() => {
+    if (!isMounted || typeof window === "undefined") return;
+
+    const ctx = gsap.context(() => {
+      sectionsRef.current.forEach((section, index) => {
+        if (section) {
+          gsap.from(section, {
+            scrollTrigger: {
+              trigger: section,
+              start: "top 80%",
+              end: "top 20%",
+              toggleActions: "play none none none",
+            },
+            opacity: 0,
+            y: 50,
+            duration: 1,
+            ease: "power3.out",
+            delay: index * 0.1,
+          });
+        }
+      });
+    });
+
+    return () => ctx.revert();
+  }, [isMounted]);
 
   const handleLike = (): void => {
     const newLikedState = !isLiked;
@@ -60,12 +209,8 @@ export default function PenxTokenUtilityContent() {
     setIsLiked(newLikedState);
     setLikeCount(newCount);
 
-    try {
-      localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
-      localStorage.setItem(`blog_likes_${postId}`, String(newCount));
-    } catch (error) {
-      console.error("Error writing to localStorage:", error);
-    }
+    localStorage.setItem(`blog_liked_${postId}`, String(newLikedState));
+    localStorage.setItem(`blog_likes_${postId}`, String(newCount));
 
     if (newLikedState) {
       createHearts();
@@ -98,1117 +243,533 @@ export default function PenxTokenUtilityContent() {
     }, 2500);
   };
 
+  if (!isMounted) return null;
+
   return (
-    <main
-      className="seo-article fade-up"
-      style={{ width: "100%", overflow: "hidden" }}
-    >
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto 2rem",
-          padding: "0 1rem",
-          width: "100%",
-          boxSizing: "border-box",
-        }}
-      >
-        <Link
-          href="/blog"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            color: "rgba(255, 255, 255, 0.7)",
-            textDecoration: "none",
-            fontWeight: "500",
-            padding: "0.5rem 1rem",
-            borderRadius: "8px",
-            transition: "all 0.3s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#0ce50c";
-            e.currentTarget.style.background = "rgba(12, 229, 12, 0.1)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-            e.currentTarget.style.background = "transparent";
-          }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            style={{ width: "20px", height: "20px", flexShrink: 0 }}
-          >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Back to Blog
-        </Link>
+    <main className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 overflow-hidden">
+      {/* Three.js Background */}
+      <div className="fixed inset-0 z-0 opacity-40">
+        <Canvas camera={{ position: [0, 0, 15], fov: 60 }}>
+          <ParticleNetwork />
+        </Canvas>
       </div>
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BlogPosting",
-            headline: "$PENX Token Utility: The Economic Backbone of PENXCHAIN",
-            image: "https://penxchain.org/blog-images/penx-token-utility.jpg",
-            author: {
-              "@type": "Person",
-              name: "Emmanuel Oluwafemi",
-            },
-            publisher: {
-              "@type": "Organization",
-              name: "PENXCHAIN",
-              logo: {
-                "@type": "ImageObject",
-                url: "https://penxchain.org/logo.png",
-              },
-            },
-            datePublished: "2024-12-16",
-          }),
-        }}
-      />
+      {/* Gradient Overlay */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-transparent via-slate-900/50 to-slate-950 pointer-events-none" />
 
-      <article style={{ width: "100%", boxSizing: "border-box" }}>
-        <motion.section
-          className="article-hero"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={fadeInSlideUp}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "0 1rem",
-          }}
-        >
-          <div className="hero-text">
-            <h1 style={{ fontSize: "clamp(1.8rem, 5vw, 2.5rem)" }}>
-              $PENX Token Utility
-            </h1>
-
-            <p style={{ fontSize: "clamp(1rem, 2.5vw, 1.2rem)" }}>
-              <strong>
-                What role does $PENX play in the PENXCHAIN ecosystem?
-              </strong>
-            </p>
-
-            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
-              $PENX is the <strong>economic backbone of PENXCHAIN</strong>,
-              designed to power privacy-first commerce, governance, and
-              incentives.
-            </p>
-
-            <div
-              className="callout"
-              style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
-            >
-              $PENX is not just a token. It&apos;s how users participate,
-              merchants grow, and governance stays community-driven.
-            </div>
-          </div>
-
-          <div
-            className="seo-image breathe"
-            role="button"
-            tabIndex={0}
-            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-              const el = e.currentTarget;
-              if (!el) return;
-              el.classList.remove("breathe");
-              void el.offsetWidth;
-              el.classList.add("breathe");
-            }}
-            onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
-              if (e.key === "Enter" || e.key === " ") {
-                const el = e.currentTarget;
-                el.classList.remove("breathe");
-                void el.offsetWidth;
-                el.classList.add("breathe");
-              }
-            }}
-            style={{
-              width: "100%",
-              maxWidth: "680px",
-              margin: "0 auto",
-              touchAction: "manipulation",
-            }}
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Header Navigation */}
+        <div className="max-w-5xl mx-auto px-6 pt-8 pb-4 flex justify-between items-center">
+          <Link
+            href="/blog"
+            className="group inline-flex items-center gap-2 text-white/60 hover:text-white transition-all duration-300 font-semibold px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 backdrop-blur-sm"
           >
-            <Image
-              src="/blog-images/penx-token-utility.jpg"
-              alt="$PENX token utility and ecosystem benefits"
-              width={680}
-              height={420}
-              priority
-              style={{ width: "100%", height: "auto", display: "block" }}
-            />
-          </div>
-        </motion.section>
-
-        <motion.section
-          className="content-section stagger show"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={staggerContainer}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "0 1rem",
-          }}
-        >
-          <h2
-            style={{
-              textAlign: "center",
-              marginBottom: "3rem",
-              fontSize: "clamp(1.5rem, 4vw, 2rem)",
-            }}
-          >
-            Core Utilities of $PENX
-          </h2>
-
-          {/* Staking */}
-          <motion.div
-            variants={fadeInSlideUp}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(12, 229, 12, 0.1) 0%, rgba(12, 229, 12, 0.05) 100%)",
-              border: "2px solid rgba(12, 229, 12, 0.3)",
-              borderRadius: "16px",
-              padding: "clamp(1.5rem, 4vw, 2.5rem)",
-              marginBottom: "2rem",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                marginBottom: "1.5rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  background: "rgba(12, 229, 12, 0.2)",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  flexShrink: 0,
-                }}
-              >
-                🔒
-              </div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#0ce50c",
-                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
-                }}
-              >
-                Staking
-              </h3>
-            </div>
-
-            <p
-              style={{
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              $PENX holders can stake their tokens to participate in securing
-              the network and earning rewards.
-            </p>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  fontWeight: "600",
-                  marginBottom: "1rem",
-                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
-                }}
-              >
-                Staking Benefits:
-              </p>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: "1.5rem",
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Earn protocol rewards</strong> – Get rewarded for
-                  supporting the ecosystem
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Support network security</strong> – Help maintain a
-                  robust and decentralized infrastructure
-                </li>
-                <li style={{ marginBottom: 0 }}>
-                  <strong>Align long-term incentives</strong> – Benefit from
-                  ecosystem growth over time
-                </li>
-              </ul>
-            </div>
-
-            <p
-              style={{
-                marginTop: "1.5rem",
-                marginBottom: 0,
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                fontStyle: "italic",
-                opacity: 0.9,
-              }}
-            >
-              Staking encourages <strong>commitment, not speculation</strong>.
-            </p>
-          </motion.div>
-
-          {/* Governance */}
-          <motion.div
-            variants={fadeInSlideUp}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(0, 122, 255, 0.1) 0%, rgba(0, 122, 255, 0.05) 100%)",
-              border: "2px solid rgba(0, 122, 255, 0.3)",
-              borderRadius: "16px",
-              padding: "clamp(1.5rem, 4vw, 2.5rem)",
-              marginBottom: "2rem",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                marginBottom: "1.5rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  background: "rgba(0, 122, 255, 0.2)",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  flexShrink: 0,
-                }}
-              >
-                🗳️
-              </div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#007aff",
-                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
-                }}
-              >
-                Governance (PENXDAO)
-              </h3>
-            </div>
-
-            <p
-              style={{
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              $PENX gives holders <strong>direct influence</strong> over the
-              ecosystem&apos;s future direction.
-            </p>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  fontWeight: "600",
-                  marginBottom: "1rem",
-                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
-                }}
-              >
-                Token holders can vote on:
-              </p>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: "1.5rem",
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Protocol upgrades</strong> – Shape technical
-                  improvements
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Marketplace rules</strong> – Define commerce standards
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Treasury allocation</strong> – Decide how funds are
-                  used
-                </li>
-                <li style={{ marginBottom: 0 }}>
-                  <strong>Ecosystem grants</strong> – Support community
-                  initiatives
-                </li>
-              </ul>
-            </div>
-
-            <p
-              style={{
-                marginTop: "1.5rem",
-                marginBottom: 0,
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                fontStyle: "italic",
-                opacity: 0.9,
-              }}
-            >
-              Governance can be public or{" "}
-              <strong>privacy-preserving using zero-knowledge proofs</strong>.
-            </p>
-          </motion.div>
-
-          {/* Fees & Payments */}
-          <motion.div
-            variants={fadeInSlideUp}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(255, 159, 10, 0.1) 0%, rgba(255, 159, 10, 0.05) 100%)",
-              border: "2px solid rgba(255, 159, 10, 0.3)",
-              borderRadius: "16px",
-              padding: "clamp(1.5rem, 4vw, 2.5rem)",
-              marginBottom: "2rem",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                marginBottom: "1.5rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  background: "rgba(255, 159, 10, 0.2)",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  flexShrink: 0,
-                }}
-              >
-                💳
-              </div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#ff9f0a",
-                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
-                }}
-              >
-                Fees & Payments
-              </h3>
-            </div>
-
-            <p
-              style={{
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              $PENX is the primary payment method across PENXCHAIN services.
-            </p>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  fontWeight: "600",
-                  marginBottom: "1rem",
-                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
-                }}
-              >
-                $PENX is used for:
-              </p>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: "1.5rem",
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Wallet services</strong> – Access advanced features
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Marketplace transactions</strong> – Buy and sell with
-                  lower fees
-                </li>
-                <li style={{ marginBottom: 0 }}>
-                  <strong>PENXPAY settlement fees</strong> – Fast, private
-                  payments
-                </li>
-              </ul>
-            </div>
-
-            <div
-              style={{
-                marginTop: "1.5rem",
-                background: "rgba(255, 159, 10, 0.15)",
-                border: "1px solid rgba(255, 159, 10, 0.3)",
-                borderRadius: "8px",
-                padding: "1rem 1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontWeight: "600",
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                💡 Pro Tip: Using $PENX unlocks{" "}
-                <strong>lower fees across the entire ecosystem</strong>.
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Liquidity & LP Rewards */}
-          <motion.div
-            variants={fadeInSlideUp}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(94, 92, 230, 0.1) 0%, rgba(94, 92, 230, 0.05) 100%)",
-              border: "2px solid rgba(94, 92, 230, 0.3)",
-              borderRadius: "16px",
-              padding: "clamp(1.5rem, 4vw, 2.5rem)",
-              marginBottom: "2rem",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                marginBottom: "1.5rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  background: "rgba(94, 92, 230, 0.2)",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  flexShrink: 0,
-                }}
-              >
-                💧
-              </div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#5e5ce6",
-                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
-                }}
-              >
-                Liquidity & LP Rewards
-              </h3>
-            </div>
-
-            <p
-              style={{
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              Liquidity providers earn rewards by supporting healthy markets for
-              $PENX.
-            </p>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  fontWeight: "600",
-                  marginBottom: "1rem",
-                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
-                }}
-              >
-                This ensures:
-              </p>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: "1.5rem",
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Deep liquidity</strong> – Easy to buy and sell without
-                  slippage
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Price stability</strong> – Reduced volatility for
-                  everyday use
-                </li>
-                <li style={{ marginBottom: 0 }}>
-                  <strong>Smooth trading experience</strong> – Fast execution at
-                  fair prices
-                </li>
-              </ul>
-            </div>
-
-            <p
-              style={{
-                marginTop: "1.5rem",
-                marginBottom: 0,
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                opacity: 0.9,
-              }}
-            >
-              Liquidity providers are the backbone of a healthy token economy,
-              and PENXCHAIN <strong>rewards them generously</strong>.
-            </p>
-          </motion.div>
-
-          {/* Marketplace & Merchant Perks */}
-          <motion.div
-            variants={fadeInSlideUp}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(255, 55, 95, 0.1) 0%, rgba(255, 55, 95, 0.05) 100%)",
-              border: "2px solid rgba(255, 55, 95, 0.3)",
-              borderRadius: "16px",
-              padding: "clamp(1.5rem, 4vw, 2.5rem)",
-              marginBottom: "2rem",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                marginBottom: "1.5rem",
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  background: "rgba(255, 55, 95, 0.2)",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  flexShrink: 0,
-                }}
-              >
-                🏪
-              </div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#ff375f",
-                  fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
-                }}
-              >
-                Marketplace & Merchant Perks
-              </h3>
-            </div>
-
-            <p
-              style={{
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              Holding or using $PENX unlocks exclusive benefits for merchants
-              and active users.
-            </p>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  fontWeight: "600",
-                  marginBottom: "1rem",
-                  fontSize: "clamp(0.9rem, 2vw, 1rem)",
-                }}
-              >
-                Benefits include:
-              </p>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: "1.5rem",
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Reduced merchant fees</strong> – Keep more of your
-                  revenue
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Access to premium tools</strong> – Advanced analytics
-                  and features
-                </li>
-                <li style={{ marginBottom: "0.5rem" }}>
-                  <strong>Subscription discounts</strong> – Lower costs for
-                  recurring services
-                </li>
-                <li style={{ marginBottom: 0 }}>
-                  <strong>Priority features</strong> – Early access to new
-                  releases
-                </li>
-              </ul>
-            </div>
-
-            <p
-              style={{
-                marginTop: "1.5rem",
-                marginBottom: 0,
-                fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
-                fontStyle: "italic",
-                opacity: 0.9,
-              }}
-            >
-              For merchants building on PENXCHAIN, $PENX is the key to{" "}
-              <strong>lower costs and better tools</strong>.
-            </p>
-          </motion.div>
-        </motion.section>
-
-        <motion.section
-          className="content-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeInSlideUp}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "0 1rem",
-          }}
-        >
-          <h2 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}>
-            Private Commerce with pPENX
-          </h2>
-
-          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
-            Inside <strong>Aleo</strong>, the wrapped version{" "}
-            <strong>pPENX</strong> enables fully private commerce.
-          </p>
-
-          <div
-            style={{
-              background: "rgba(12, 229, 12, 0.05)",
-              border: "2px solid rgba(12, 229, 12, 0.2)",
-              borderRadius: "16px",
-              padding: "clamp(1.5rem, 4vw, 2rem)",
-              margin: "2rem 0",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <h3
-              style={{
-                marginTop: 0,
-                color: "#0ce50c",
-                fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
-              }}
-            >
-              What is pPENX?
-            </h3>
-            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
-              pPENX is a privacy-wrapped version of $PENX that operates on the
-              Aleo blockchain using zero-knowledge proofs.
-            </p>
-            <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
-              When you use pPENX, your transactions are completely confidential.
-              Nobody can see:
-            </p>
-            <ul style={{ fontSize: "clamp(0.85rem, 1.8vw, 1rem)" }}>
-              <li>How much you paid</li>
-              <li>Who you paid</li>
-              <li>What you bought</li>
-              <li>Your wallet balance</li>
-            </ul>
-            <p
-              style={{ marginBottom: 0, fontSize: "clamp(0.9rem, 2vw, 1rem)" }}
-            >
-              This makes pPENX ideal for{" "}
-              <strong>private marketplace purchases</strong>,{" "}
-              <strong>confidential payments</strong>, and{" "}
-              <strong>business transactions</strong> that require discretion.
-            </p>
-          </div>
-
-          <p style={{ fontSize: "clamp(0.9rem, 2vw, 1rem)" }}>
-            The combination of $PENX on Base (for liquidity) and pPENX on Aleo
-            (for privacy) gives users the best of both worlds.
-          </p>
-        </motion.section>
-
-        <motion.section
-          className="content-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeInSlideUp}
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(12, 229, 12, 0.1) 0%, rgba(0, 122, 255, 0.1) 100%)",
-            border: "2px solid rgba(12, 229, 12, 0.3)",
-            borderRadius: "16px",
-            padding: "clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2rem)",
-            textAlign: "center",
-            width: "100%",
-            boxSizing: "border-box",
-            margin: "0 1rem",
-            maxWidth: "calc(100% - 2rem)",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "clamp(1.5rem, 4vw, 2rem)",
-              marginTop: 0,
-            }}
-          >
-            $PENX: More Than Just a Token
-          </h2>
-
-          <p
-            style={{
-              fontSize: "clamp(0.95rem, 2.2vw, 1.15rem)",
-              maxWidth: "700px",
-              margin: "0 auto 2rem",
-            }}
-          >
-            $PENX is not just a speculative asset. It is the economic engine
-            that powers the entire PENXCHAIN ecosystem.
-          </p>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: "1.5rem",
-              margin: "2rem auto 0",
-              maxWidth: "800px",
-              textAlign: "left",
-            }}
-          >
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
-                  fontWeight: "600",
-                }}
-              >
-                🙋 For Users
-              </p>
-              <p
-                style={{
-                  margin: "0.5rem 0 0",
-                  opacity: 0.9,
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                Participate in governance and earn rewards
-              </p>
-            </div>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
-                  fontWeight: "600",
-                }}
-              >
-                🏪 For Merchants
-              </p>
-              <p
-                style={{
-                  margin: "0.5rem 0 0",
-                  opacity: 0.9,
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                Grow businesses with lower fees and better tools
-              </p>
-            </div>
-
-            <div
-              style={{
-                background: "rgba(0, 0, 0, 0.3)",
-                borderRadius: "12px",
-                padding: "1.5rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(0.95rem, 2vw, 1.1rem)",
-                  fontWeight: "600",
-                }}
-              >
-                🤝 For the Community
-              </p>
-              <p
-                style={{
-                  margin: "0.5rem 0 0",
-                  opacity: 0.9,
-                  fontSize: "clamp(0.85rem, 1.8vw, 1rem)",
-                }}
-              >
-                Keep governance decentralized and community-driven
-              </p>
-            </div>
-          </div>
-
-          <p
-            style={{
-              fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
-              fontWeight: "600",
-              marginTop: "2.5rem",
-              marginBottom: 0,
-            }}
-          >
-            It&apos;s how the ecosystem stays <strong>sustainable</strong>,{" "}
-            <strong>user-focused</strong>, and <strong>privacy-first</strong>.
-          </p>
-        </motion.section>
-
-        <div
-          style={{
-            maxWidth: "300px",
-            margin: "0 auto 2rem",
-            padding: "0 1rem",
-            position: "relative",
-            width: "100%",
-            boxSizing: "border-box",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: "1rem",
-              padding: "1.5rem",
-              background: "rgba(255, 255, 255, 0.03)",
-              borderRadius: "16px",
-              border: "1px solid rgba(255, 255, 255, 0.05)",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              onClick={handleLike}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                background: isLiked
-                  ? "rgba(255, 107, 107, 0.15)"
-                  : "transparent",
-                border: `2px solid ${
-                  isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.1)"
-                }`,
-                padding: "0.75rem 1.5rem",
-                borderRadius: "50px",
-                color: isLiked ? "#ff6b6b" : "rgba(255, 255, 255, 0.7)",
-                fontSize: "clamp(0.9rem, 2vw, 1rem)",
-                fontWeight: "600",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                position: "relative",
-                overflow: "visible",
-                touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent",
-              }}
-              onMouseEnter={(e) => {
-                if (!isLiked) {
-                  e.currentTarget.style.background = "rgba(255, 107, 107, 0.1)";
-                  e.currentTarget.style.borderColor = "#ff6b6b";
-                  e.currentTarget.style.color = "#ff6b6b";
-                  e.currentTarget.style.transform = "scale(1.05)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isLiked) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor =
-                    "rgba(255, 255, 255, 0.1)";
-                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-                  e.currentTarget.style.transform = "scale(1)";
-                }
-              }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill={isLiked ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth="2"
-                style={{ width: "24px", height: "24px", flexShrink: 0 }}
-              >
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              {likeCount > 0 && <span>{likeCount}</span>}
-            </button>
-            <span
-              style={{
-                color: "rgba(255, 255, 255, 0.6)",
-                fontSize: "clamp(0.8rem, 1.8vw, 0.9rem)",
-                textAlign: "center",
-              }}
-            >
-              {isLiked ? "You liked this" : "Like this post"}
-            </span>
-          </div>
-
-          <AnimatePresence>
-            {hearts.map((heart) => (
-              <motion.div
-                key={heart.id}
-                initial={{
-                  opacity: 1,
-                  y: 0,
-                  x: heart.x,
-                  scale: 0,
-                  rotate: 0,
-                }}
-                animate={{
-                  opacity: 0,
-                  y: -150,
-                  x: heart.x + heart.drift,
-                  scale: 1,
-                  rotate: heart.rotation,
-                }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: heart.duration,
-                  delay: heart.delay,
-                  ease: [0.25, 0.46, 0.45, 0.94],
-                }}
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  pointerEvents: "none",
-                  zIndex: 1000,
-                  willChange: "transform, opacity",
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="#ff6b6b"
-                  style={{
-                    width: `${heart.size}px`,
-                    height: `${heart.size}px`,
-                    filter: "drop-shadow(0 2px 4px rgba(255, 107, 107, 0.3))",
-                  }}
-                >
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+            <ArrowRight className="w-4 h-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
+            Back to Blog
+          </Link>
+          <ShareButtons title={postTitle} slug={postSlug} />
         </div>
-      </article>
+
+        {/* SEO Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BlogPosting",
+              headline: "Connecting with Base: PENXCHAIN's Hybrid Architecture",
+              image: "https://penxchain.org/blog-images/base-hybrid.jpg",
+              author: {
+                "@type": "Person",
+                name: "Emmanuel Oluwafemi",
+              },
+              publisher: {
+                "@type": "Organization",
+                name: "PENXCHAIN",
+                logo: {
+                  "@type": "ImageObject",
+                  url: "https://penxchain.org/icon.jpeg",
+                },
+              },
+              datePublished: "2025-11-25",
+            }),
+          }}
+        />
+
+        <article className="max-w-5xl mx-auto px-6 py-12 space-y-24">
+          {/* Hero Section */}
+          <motion.section
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={fadeInSlideUp}
+            className="grid md:grid-cols-2 gap-12 items-center"
+          >
+            <div className="space-y-6">
+              
+              <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
+                Connecting with Base: The Hybrid Approach
+              </h1>
+
+              <p className="text-xl text-white/70 leading-relaxed">
+                <strong className="text-white/90">PENXCHAIN is built hybrid by design.</strong>
+              </p>
+
+              <p className="text-lg text-white/60 leading-relaxed">
+                We build our core products on <strong className="text-emerald-400">Aleo</strong> using
+                zero-knowledge (ZK) technology to deliver privacy-first execution
+                for payments, commerce, and identity.
+              </p>
+
+              <p className="text-lg text-white/60 leading-relaxed">
+                We deploy the <strong className="text-blue-400">$PENX token on Base</strong> for liquidity,
+                distribution, composability, and access to a larger market.
+              </p>
+
+              <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-black to-blue-500/10 border border-blue-500/20 backdrop-blur-xl">
+                <p className="text-white/80 leading-relaxed">
+                  Aleo handles private execution. Base handles liquidity and
+                  settlement. This structure lets us scale real-world privacy
+                  without sacrificing adoption.
+                </p>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-900 via-blue-400 to-blue-600 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+              <div className="relative rounded-3xl overflow-hidden border border-white/10 backdrop-blur-sm bg-white/5">
+                <Image
+                  src="/blog-images/base-hybrid.jpg"
+                  alt="PENXCHAIN hybrid architecture with Aleo and Base"
+                  width={680}
+                  height={420}
+                  priority
+                  className="w-full h-auto"
+                />
+              </div>
+            </div>
+          </motion.section>
+
+          {/* Why Hybrid Architecture */}
+          <section
+            ref={(el) => {
+              sectionsRef.current[0] = el;
+            }}
+            className="max-w-3xl mx-auto space-y-6"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white">
+              Why Hybrid Architecture?
+            </h2>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              Most blockchain projects force a choice: either prioritize privacy
+              and limit adoption, or maximize liquidity and sacrifice user
+              protection.
+            </p>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              PENXCHAIN refuses that trade-off. By combining the strengths of two
+              specialized chains, we deliver both privacy and scale.
+            </p>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              This is not a compromise. It is an intentional design decision that
+              acknowledges the different needs of private execution versus public
+              liquidity.
+            </p>
+          </section>
+
+          {/* Two-Layer System */}
+          <section
+            ref={(el) => {
+              sectionsRef.current[1] = el;
+            }}
+            className="space-y-8"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white text-center">
+              The Two-Layer System
+            </h2>
+
+            <div className="grid md:grid-cols-2 gap-8 relative">
+              {/* Connection Line (Desktop only) */}
+              <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-1 z-0">
+                <div className="w-full h-full bg-gradient-to-r from-emerald-500 via-purple-500 to-blue-500 animate-pulse" />
+              </div>
+
+              {/* Aleo Layer */}
+              <motion.div
+                variants={fadeInSlideUp}
+                className="relative group p-8 rounded-3xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 backdrop-blur-xl hover:border-emerald-500/50 transition-all duration-500 hover:scale-[1.02]"
+              >
+                <div className="absolute -top-4 -right-4 p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-sm">
+                  <Shield className="w-8 h-8 text-emerald-400" />
+                </div>
+
+                <h3 className="text-3xl font-bold text-emerald-400 mb-6">
+                  Layer 1: Aleo (Privacy)
+                </h3>
+
+                <ul className="space-y-4 mb-6">
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-emerald-400 mt-1 flex-shrink-0" />
+                    <span>Zero-knowledge proof execution</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-emerald-400 mt-1 flex-shrink-0" />
+                    <span>Private payments and transactions</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-emerald-400 mt-1 flex-shrink-0" />
+                    <span>Confidential commerce infrastructure</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-emerald-400 mt-1 flex-shrink-0" />
+                    <span>Encrypted identity management</span>
+                  </li>
+                </ul>
+
+                <p className="text-sm text-white/50">
+                  <strong className="text-white/70">Purpose:</strong> Protect user data and transaction privacy
+                </p>
+              </motion.div>
+
+              {/* Base Layer */}
+              <motion.div
+                variants={fadeInSlideUp}
+                className="relative group p-8 rounded-3xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/30 backdrop-blur-xl hover:border-blue-500/50 transition-all duration-500 hover:scale-[1.02]"
+              >
+                <div className="absolute -top-4 -right-4 p-4 rounded-2xl bg-blue-500/20 border border-blue-500/30 backdrop-blur-sm">
+                  <Zap className="w-8 h-8 text-blue-400" />
+                </div>
+
+                <h3 className="text-3xl font-bold text-blue-400 mb-6">
+                  Layer 2: Base (Liquidity)
+                </h3>
+
+                <ul className="space-y-4 mb-6">
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-blue-400 mt-1 flex-shrink-0" />
+                    <span>$PENX token distribution</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-blue-400 mt-1 flex-shrink-0" />
+                    <span>DeFi integration and composability</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-blue-400 mt-1 flex-shrink-0" />
+                    <span>Broader market access</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-white/70">
+                    <ArrowRight className="w-5 h-5 text-blue-400 mt-1 flex-shrink-0" />
+                    <span>Fast, low-cost settlements</span>
+                  </li>
+                </ul>
+
+                <p className="text-sm text-white/50">
+                  <strong className="text-white/70">Purpose:</strong> Enable adoption and liquidity at scale
+                </p>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* How It Works in Practice */}
+          <section
+            ref={(el) => {
+              sectionsRef.current[2] = el;
+            }}
+            className="max-w-3xl mx-auto space-y-6"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white">
+              How It Works in Practice
+            </h2>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              When you use PENXCHAIN, the system routes your activity to the right
+              layer automatically:
+            </p>
+
+            <ul className="space-y-6">
+              <li className="flex items-start gap-4 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
+                <ArrowRight className="w-6 h-6 text-emerald-400 mt-1 flex-shrink-0" />
+                <div>
+                  <strong className="text-white/90 text-lg">Making a private payment?</strong>
+                  <p className="text-white/60 mt-2">
+                    Your transaction is processed on Aleo with full ZK encryption. Nobody can see who you
+                    paid, how much you sent, or what your balance is.
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-4 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
+                <ArrowRight className="w-6 h-6 text-blue-400 mt-1 flex-shrink-0" />
+                <div>
+                  <strong className="text-white/90 text-lg">Trading $PENX tokens?</strong>
+                  <p className="text-white/60 mt-2">
+                    The transaction happens on Base, where you benefit from deep liquidity, fast confirmations,
+                    and integration with the broader DeFi ecosystem.
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-4 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
+                <ArrowRight className="w-6 h-6 text-purple-400 mt-1 flex-shrink-0" />
+                <div>
+                  <strong className="text-white/90 text-lg">Shopping on the marketplace?</strong>
+                  <p className="text-white/60 mt-2">
+                    The payment is private (Aleo), but the token movement for rewards or settlements
+                    happens on Base when needed.
+                  </p>
+                </div>
+              </li>
+            </ul>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              You do not have to think about which chain you are using. The
+              interface handles routing behind the scenes, giving you a seamless
+              experience.
+            </p>
+          </section>
+
+          {/* Why Base Specifically */}
+          <section
+            ref={(el) => {
+              sectionsRef.current[3] = el;
+            }}
+            className="max-w-3xl mx-auto space-y-6"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white">
+              Why Base Specifically?
+            </h2>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              Base is an Ethereum Layer 2 built by Coinbase. It is optimized for
+              speed, low fees, and Ethereum compatibility. More importantly, it
+              has rapidly become one of the most active chains for real users and
+              real applications.
+            </p>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              Here is why it fits PENXCHAIN:
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                <h4 className="text-lg font-bold text-white mb-2">High liquidity</h4>
+                <p className="text-white/60 text-sm">
+                  Base has strong DeFi integration, making it easy to trade, swap, and provide liquidity for $PENX.
+                </p>
+              </div>
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                <h4 className="text-lg font-bold text-white mb-2">Low fees</h4>
+                <p className="text-white/60 text-sm">
+                  Transaction costs are a fraction of Ethereum mainnet, making small payments practical.
+                </p>
+              </div>
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                <h4 className="text-lg font-bold text-white mb-2">Ecosystem growth</h4>
+                <p className="text-white/60 text-sm">
+                  Base is attracting developers and users focused on real-world utility, not just speculation.
+                </p>
+              </div>
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                <h4 className="text-lg font-bold text-white mb-2">Composability</h4>
+                <p className="text-white/60 text-sm">
+                  Being EVM-compatible means $PENX can interact with hundreds of existing protocols.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Strategic Advantage */}
+          <section
+            ref={(el) => {
+              sectionsRef.current[4] = el;
+            }}
+            className="max-w-3xl mx-auto space-y-6"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white">
+              The Strategic Advantage
+            </h2>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              By splitting responsibilities between Aleo and Base, PENXCHAIN gains
+              advantages that single-chain projects cannot match:
+            </p>
+
+            <div className="p-8 rounded-3xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10 backdrop-blur-xl space-y-8">
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-3">
+                  Best-in-Class Technology for Each Use Case
+                </h3>
+                <p className="text-white/70">
+                  Aleo is purpose-built for privacy. Base is purpose-built for
+                  liquidity. We use each chain for what it does best.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-3">
+                  Reduced Risk
+                </h3>
+                <p className="text-white/70">
+                  If one chain faces congestion, regulatory pressure, or technical
+                  issues, the other continues operating. The system is resilient by
+                  design.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-3">
+                  Flexibility for Future Growth
+                </h3>
+                <p className="text-white/70">
+                  As the ecosystem evolves, we can integrate additional chains or
+                  protocols without rebuilding from scratch. The hybrid model is
+                  future-proof.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Conclusion */}
+          <section
+            ref={(el) => {
+              sectionsRef.current[5] = el;
+            }}
+            className="max-w-3xl mx-auto space-y-6"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white">
+              Hybrid Is Not a Trend. It Is How PENXCHAIN Grows.
+            </h2>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              Privacy and adoption are not opposing forces. They are complementary
+              goals that require the right infrastructure.
+            </p>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              By building on Aleo for privacy and Base for liquidity, PENXCHAIN
+              creates a system that serves both users who need protection and
+              users who need access.
+            </p>
+
+            <p className="text-lg text-white/70 leading-relaxed">
+              This is not a temporary strategy. It is the foundation of how
+              PENXCHAIN scales globally without compromising its core values.
+            </p>
+
+            <p className="text-xl font-bold text-white">
+              Privacy-first. Liquidity-ready. Built to last.
+            </p>
+          </section>
+
+          {/* Like & Share Section */}
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInSlideUp}
+            className="max-w-2xl mx-auto p-10 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/20 backdrop-blur-xl text-center space-y-8"
+          >
+            <div className="flex justify-center">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                <Lightbulb className="w-12 h-12 text-purple-400" />
+              </div>
+            </div>
+
+            <h3 className="text-3xl font-bold text-white">
+              Enjoyed this architectural deep-dive?
+            </h3>
+
+            <p className="text-white/60 max-w-md mx-auto leading-relaxed">
+              Knowledge is the only asset that grows when shared. Help us
+              enlighten the community by sharing this hybrid vision with your
+              network.
+            </p>
+
+            <div className="space-y-6">
+              {/* Like Button */}
+              <div className="relative inline-block">
+                <motion.button
+                  onClick={handleLike}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg transition-all ${
+                    isLiked
+                      ? "bg-gradient-to-r from-pink-500/20 to-red-500/20 border-2 border-pink-500/50 text-pink-400"
+                      : "bg-white/5 border-2 border-white/20 text-white/70 hover:border-pink-500/50 hover:text-pink-400"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill={isLiked ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className="w-6 h-6"
+                  >
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  {isLiked ? `Loved by ${likeCount}` : "Appreciate Article"}
+                </motion.button>
+
+                {/* Heart Animation */}
+                <AnimatePresence>
+                  {hearts.map((heart) => (
+                    <motion.div
+                      key={heart.id}
+                      initial={{
+                        opacity: 1,
+                        y: 0,
+                        x: heart.x,
+                        scale: 0,
+                        rotate: 0,
+                      }}
+                      animate={{
+                        opacity: 0,
+                        y: -150,
+                        x: heart.x + heart.drift,
+                        scale: 1,
+                        rotate: heart.rotation,
+                      }}
+                      exit={{ opacity: 0 }}
+                      transition={{
+                        duration: heart.duration,
+                        delay: heart.delay,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                      }}
+                      className="absolute top-0 left-1/2 pointer-events-none z-50"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="#ff4d4d"
+                        style={{
+                          width: `${heart.size}px`,
+                          height: `${heart.size}px`,
+                          filter: "drop-shadow(0 2px 4px rgba(255, 77, 77, 0.3))",
+                        }}
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+              {/* Share Section */}
+              <div className="flex flex-col items-center gap-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-white/40">
+                  Spread the Vision
+                </span>
+                <ShareButtons title={postTitle} slug={postSlug} />
+              </div>
+            </div>
+          </motion.div>
+        </article>
+      </div>
     </main>
   );
 }
