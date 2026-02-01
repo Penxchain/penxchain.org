@@ -1,155 +1,171 @@
-import { User, AuthResponse } from '../types/waitlist';
-import { initialUser, sampleUsers, calculateLevel } from './waitlist-data';
+import { User, AuthResponse } from "../types/waitlist";
+import { apiRequest } from "@/lib/api-client";
 
-const STORAGE_KEY = 'penxchain_waitlist_user';
-const USERS_KEY = 'penxchain_waitlist_users';
-
-// Initialize sample users in localStorage
-function initializeSampleUsers() {
-  if (typeof window === 'undefined') return;
+// Check referral code validity
+export async function validateReferralCode(code: string): Promise<boolean> {
+  if (!code || code.length < 3) return false;
   
-  const existing = localStorage.getItem(USERS_KEY);
-  if (!existing) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(sampleUsers));
+  try {
+    const result = await apiRequest<{ valid: boolean }>(`/auth/check-referral?code=${code}`);
+    return result.ok ? !!result.data?.valid : false;
+  } catch (error) {
+    console.error("[AUTH] Referral check failed:", error);
+    return false;
   }
 }
 
-// Get all users from storage
-function getAllUsers(): User[] {
-  if (typeof window === 'undefined') return [];
-  
-  initializeSampleUsers();
-  const stored = localStorage.getItem(USERS_KEY);
-  return stored ? JSON.parse(stored) : [];
+const STORAGE_KEY = "penxchain_waitlist_user";
+
+// Helper to save session
+function saveSession(user: User) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
 }
 
-// Update user in users list
-function updateUserInList(user: User) {
-  if (typeof window === 'undefined') return;
-  
-  const users = getAllUsers();
-  const index = users.findIndex((u) => u.id === user.id);
-  
-  if (index !== -1) {
-    users[index] = user;
-  } else {
-    users.push(user);
+// Broadcast an in-tab event when the user session changes so client components can react
+function broadcastSessionUpdate(user: User) {
+  if (typeof window === "undefined") return;
+  try {
+    const ev = new CustomEvent("penxchain:user-updated", { detail: user });
+    window.dispatchEvent(ev);
+  } catch (e) {
+    // ignore
   }
-  
-  // Recalculate ranks based on points
-  const sortedUsers = users.sort((a, b) => b.points - a.points);
-  sortedUsers.forEach((u, idx) => {
-    u.rank = idx + 1;
-  });
-  
-  localStorage.setItem(USERS_KEY, JSON.stringify(sortedUsers));
 }
 
-// Login function
-export function login(email: string, password: string): AuthResponse {
-  if (typeof window === 'undefined') {
-    return { success: false, error: 'Window not available' };
-  }
+// Helper to clear session
+function clearSession() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
+}
 
-  // Check if it's the main user
-  if (email === initialUser.email && password === initialUser.password) {
-    // Check if user already exists in storage
-    const existingUser = localStorage.getItem(STORAGE_KEY);
-    const user = existingUser ? JSON.parse(existingUser) : initialUser;
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    updateUserInList(user);
-    
+// Login function (Supports both Email/Password and Wallet/Signature)
+export async function login(
+  emailOrWallet: string,
+  passwordOrSignature?: string,
+  recaptchaToken?: string, // Added for bot protection
+): Promise<AuthResponse> {
+  try {
+    // If input contains '@', treat as email login, else treat as wallet login
+    const isEmail = emailOrWallet.includes("@");
+    const body = isEmail
+      ? { email: emailOrWallet.toLowerCase(), password: passwordOrSignature, recaptchaToken }
+      : { walletAddress: emailOrWallet, signature: passwordOrSignature, recaptchaToken };
+
+    console.debug(`[AUTH] Attempting login via ${isEmail ? "email" : "wallet"}:`, {
+      identifier: emailOrWallet,
+      hasCredential: !!passwordOrSignature,
+    });
+
+    const result = await apiRequest<any>("/auth/login", {
+      method: "POST",
+      body,
+    });
+
+    if (!result.ok) {
+      console.error("[AUTH] Login failed:", result.error.message);
+      return { success: false, error: result.error.message };
+    }
+
+    // Normalize backend response to frontend User interface
+    const backendUser = result.data;
+    const user: User = {
+      id: backendUser.id,
+      username: backendUser.username || "",
+      email: backendUser.email || "",
+      password: "", // Never store password
+      points: backendUser.pxpBalance ?? 0, // Map pxpBalance → points
+      level: calculateLevel(backendUser.pxpBalance ?? 0),
+      rank: 0, // Will be fetched separately
+      referralCode: backendUser.referralCode || "",
+      referralCount: 0,
+      completedTasks: [],
+      joinedAt: backendUser.createdAt || new Date().toISOString(),
+      lastDailyReset: new Date().toISOString(),
+      lastBonusClaim: backendUser.lastBonusClaim,
+      role: backendUser.role || "USER",
+      token: backendUser.token,
+    };
+
+    saveSession(user);
+    broadcastSessionUpdate(user);
     return { success: true, user };
+  } catch (error: any) {
+    console.error("[AUTH] Unexpected error during login:", error.message);
+    return { success: false, error: error.message };
   }
+}
 
-  // Check sample users
-  const users = getAllUsers();
-  const user = users.find((u) => u.email === email && u.password === password);
-
-  if (user) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    return { success: true, user };
-  }
-
-  return { success: false, error: 'Invalid email or password' };
+// Calculate user level based on points
+function calculateLevel(points: number): number {
+  if (points >= 10000) return 10;
+  if (points >= 5000) return 9;
+  if (points >= 2500) return 8;
+  if (points >= 1500) return 7;
+  if (points >= 1000) return 6;
+  if (points >= 600) return 5;
+  if (points >= 350) return 4;
+  if (points >= 150) return 3;
+  if (points >= 50) return 2;
+  return 1;
 }
 
 // Signup function
-export function signup(
+export async function signup(
   username: string,
   email: string,
-  password: string,
-  referralCode?: string
-): AuthResponse {
-  if (typeof window === 'undefined') {
-    return { success: false, error: 'Window not available' };
-  }
+  password?: string,
+  referralCode?: string,
+  recaptchaToken?: string, // Added for bot protection
+): Promise<AuthResponse> {
+  try {
+    const result = await apiRequest<any>("/auth/signup", {
+      method: "POST",
+      body: { username, email: email.toLowerCase(), password, referralCode, recaptchaToken },
+    });
 
-  // Check if email already exists
-  const users = getAllUsers();
-  const existingUser = users.find((u) => u.email === email);
-
-  if (existingUser) {
-    return { success: false, error: 'Email already registered' };
-  }
-
-  // Check if username already taken
-  const existingUsername = users.find((u) => u.username === username);
-  if (existingUsername) {
-    return { success: false, error: 'Username already taken' };
-  }
-
-  // Find referrer if code provided
-  let referredBy: string | undefined;
-  let bonusPoints = 0;
-
-  if (referralCode) {
-    const referrer = users.find((u) => u.referralCode === referralCode);
-    if (referrer) {
-      referredBy = referrer.id;
-      bonusPoints = 50; // Bonus for using referral code
-      
-      // Update referrer's count and points
-      referrer.referralCount += 1;
-      referrer.points += 200; // Referrer gets 200 points
-      referrer.level = calculateLevel(referrer.points);
-      updateUserInList(referrer);
+    if (!result.ok) {
+      console.error("[AUTH] Signup failed:", result.error.message);
+      return { success: false, error: result.error.message };
     }
+
+    // Normalize backend response to frontend User interface
+    const backendUser = result.data;
+    const user: User = {
+      id: backendUser.id,
+      username: backendUser.username || username,
+      email: backendUser.email || email,
+      password: "", // Never store password
+      points: backendUser.pxpBalance ?? 0,
+      level: calculateLevel(backendUser.pxpBalance ?? 0),
+      rank: 0,
+      referralCode: backendUser.referralCode || "",
+      referredBy: backendUser.referredById ? { username: "Referrer" } : undefined,
+      referralCount: 0,
+      completedTasks: [],
+      joinedAt: backendUser.createdAt || new Date().toISOString(),
+      lastDailyReset: new Date().toISOString(),
+      role: backendUser.role || "USER",
+      token: backendUser.token,
+    };
+
+    saveSession(user);
+    broadcastSessionUpdate(user);
+    return { success: true, user };
+  } catch (error: any) {
+    console.error("[AUTH] Unexpected error during signup:", error.message);
+    return { success: false, error: error.message };
   }
-
-  const newUser: User = {
-    id: `user-${Date.now()}`,
-    username,
-    email,
-    password,
-    points: bonusPoints,
-    level: 1,
-    rank: users.length + 1,
-    referralCode: `${username.substring(0, 3).toUpperCase()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    referredBy,
-    referralCount: 0,
-    completedTasks: [],
-    joinedAt: new Date().toISOString(),
-    lastDailyReset: new Date().toISOString(),
-  };
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-  updateUserInList(newUser);
-
-  return { success: true, user: newUser };
 }
 
 // Logout function
 export function logout(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(STORAGE_KEY);
+  clearSession();
 }
 
 // Get current user
 export function getCurrentUser(): User | null {
-  if (typeof window === 'undefined') return null;
-  
+  if (typeof window === "undefined") return null;
   const stored = localStorage.getItem(STORAGE_KEY);
   return stored ? JSON.parse(stored) : null;
 }
@@ -159,22 +175,23 @@ export function isAuthenticated(): boolean {
   return getCurrentUser() !== null;
 }
 
-// Update current user
+// Get user ID from storage
+export function getUserIdFromStorage(): string {
+  if (typeof window === "undefined") return "";
+  const user = getCurrentUser();
+  return user?.id || "";
+}
+
+// Update current user (Local cache update only for now, ideally API call)
 export function updateCurrentUser(updates: Partial<User>): User | null {
-  if (typeof window === 'undefined') return null;
-  
+  if (typeof window === "undefined") return null;
+
   const currentUser = getCurrentUser();
   if (!currentUser) return null;
 
   const updatedUser = { ...currentUser, ...updates };
-  
-  // Recalculate level if points changed
-  if (updates.points !== undefined) {
-    updatedUser.level = calculateLevel(updatedUser.points);
-  }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
-  updateUserInList(updatedUser);
-
+  saveSession(updatedUser);
+  broadcastSessionUpdate(updatedUser);
   return updatedUser;
 }
+

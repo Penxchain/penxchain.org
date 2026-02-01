@@ -24,6 +24,7 @@ import AnimatedBackground from './AnimatedBackground';
 
 import { getAvatarStyle, generateRandomAvatarSeed } from '../lib/avatars';
 import PXPSpinner from './PXPSpinner';
+import OfflineState from './OfflineState';
 
 interface WaitlistLayoutProps {
   children: ReactNode;
@@ -34,14 +35,62 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<UserType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
+    // Check initial user
     const currentUser = getCurrentUser();
     if (!currentUser) {
       router.push('/wallet-waitlist/login');
     } else {
       setUser(currentUser);
     }
+    
+    // Robust Network Check
+    const checkConnection = async () => {
+      if (typeof navigator === 'undefined') return;
+      
+      if (!navigator.onLine) {
+        setIsOnline(false);
+        return;
+      }
+
+      try {
+        // Ping a reliable resource (our own health check or just a small file)
+        // Using HEAD request to avoid downloading body
+        // timestamp to bypass cache
+        const res = await fetch(`/favicon.ico?t=${Date.now()}`, { method: 'HEAD' });
+        setIsOnline(res.ok || res.status === 404); // 404 means server reached but file not found (still online)
+      } catch (e) {
+        setIsOnline(false);
+      }
+    };
+
+    // Initial check
+    checkConnection();
+
+    // Event Listeners
+    window.addEventListener("online", checkConnection);
+    window.addEventListener("offline", () => setIsOnline(false));
+
+    // Polling every 10 seconds for aggressive detection
+    const interval = setInterval(checkConnection, 10000);
+    
+    // Subscribe to user updates for real-time PXP synchronization
+    const handleUserUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<UserType>;
+      if (customEvent.detail) {
+        setUser(customEvent.detail);
+      }
+    };
+    window.addEventListener("penxchain:user-updated", handleUserUpdate);
+
+    return () => {
+      window.removeEventListener("online", checkConnection);
+      window.removeEventListener("offline", () => setIsOnline(false));
+      window.removeEventListener("penxchain:user-updated", handleUserUpdate);
+      clearInterval(interval);
+    };
   }, [router]);
 
   const handleLogout = () => {
@@ -64,6 +113,10 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
     { icon: User, label: 'Profile', href: '/wallet-waitlist/profile' },
     { icon: Trophy, label: 'Leaderboard', href: '/wallet-waitlist/leaderboard' },
   ];
+
+  if (user.role === 'ADMIN' || user.role === 'SUPERADMIN') {
+    navItems.push({ icon: Shield, label: 'Admin', href: '/admin' });
+  }
 
   return (
     <div className="min-h-screen bg-[#020202] text-white selection:bg-[#2547D0] relative overflow-x-hidden">
@@ -153,7 +206,7 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
             {/* Points */}
             <div className="flex items-center justify-between text-xs mb-2">
               <span className="text-white/40 font-mono uppercase">PXP Balance</span>
-              <span className="text-white font-bold">{user.points.toLocaleString()}</span>
+              <span className="text-white font-bold">{user.points?.toLocaleString() ?? '0'}</span>
             </div>
 
             {/* Level Progress */}
@@ -234,11 +287,13 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
             <div className="flex items-center gap-3 ml-auto">
               <div className="hidden md:flex flex-col items-end mr-4">
                   <span className="text-[10px] text-[#2547D0] font-mono uppercase tracking-wider">System Status</span>
-                  <span className="text-[10px] text-white/40 font-mono">OPERATIONAL // V.1.0.0</span>
+                  <span className="text-[10px] text-white/40 font-mono">
+                    {isOnline ? "OPERATIONAL // V.1.0.0" : "CONNECTION LOST"}
+                  </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-[#2547D0]/10 border border-[#2547D0]/20 rounded-lg">
                 <span className="text-[#2547D0] text-xs font-bold font-mono">PXP</span>
-                <span className="text-white text-sm font-bold">{user.points.toLocaleString()}</span>
+                <span className="text-white text-sm font-bold">{user.points?.toLocaleString() ?? '0'}</span>
               </div>
             </div>
           </div>
@@ -246,7 +301,7 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
 
         {/* Page Content */}
         <div className="p-6 lg:p-10 max-w-7xl mx-auto">
-          {children}
+          {!isOnline ? <OfflineState /> : children}
         </div>
       </main>
 

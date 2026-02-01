@@ -1,0 +1,11 @@
+debug.log
+dist/
+node_modules/
+package.json
+package-lock.json
+prisma/
+prisma.config.ts
+scripts/
+src/
+test.log
+tsconfig.json

@@ -84,7 +84,7 @@ const FinalCTA = () => {
            className="mt-24 grid grid-cols-3 gap-8 text-[9px] font-mono text-gray-600 uppercase tracking-widest border-t border-white/5 pt-8"
         >
            <div className="text-left">Status: Pre-TGE</div>
-           <div className="text-center text-[#2547D0]">Slots Remaining: Limited</div>
+           <div className="text-center text-red-900">Slots Remaining: <span>Limited</span></div>
            <div className="text-right">Latency: 12ms</div>
         </motion.div>
 

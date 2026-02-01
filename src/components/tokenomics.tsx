@@ -109,7 +109,7 @@ export default function Tokenomics() {
 
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[25%] h-[25%] pointer-events-none">
               <Image
-                src="/penx-icon.png"
+                src="/penx-icon-nobg.png"
                 alt="Logo"
                 fill
                 className="object-contain"

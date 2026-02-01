@@ -8,10 +8,12 @@ import {
   Mail, Lock, User, Eye, EyeOff, AlertCircle, 
   ChevronRight, Shield, Fingerprint, Globe 
 } from 'lucide-react';
-import { FaGift, FaXTwitter, FaGoogle } from 'react-icons/fa6';
-import { signup } from '../lib/waitlist-auth';
+import { FaGift, FaXTwitter, FaGoogle, FaCheck, FaXmark } from 'react-icons/fa6';
+import { signup, validateReferralCode } from '../lib/waitlist-auth';
 import AnimatedBackground from '../components/AnimatedBackground';
 import Scene3D from '../components/Scene3D';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import ReCaptchaWrapper from '../components/ReCaptchaWrapper';
 
 const MAX_USERNAME_LENGTH = 20;
 
@@ -19,15 +21,48 @@ function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const referralCode = searchParams.get('ref');
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [referral, setReferral] = useState(referralCode || '');
+  const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{ referrer: string; points: number } | null>(null);
+
+  // Debounced referral check - only validate when PNX-XXXXXX pattern is complete
+  React.useEffect(() => {
+    const timer = setTimeout(async () => {
+      // Check for complete PNX-XXXXXX pattern (10 chars)
+      const isValidPattern = /^PNX-[A-Z0-9]{6}$/i.test(referral);
+      
+      if (!referral || referral.length === 0) {
+        setReferralStatus('idle');
+        return;
+      }
+      
+      // If pattern doesn't match, show invalid only when >= 10 chars (fully typed but wrong)
+      if (!isValidPattern) {
+        if (referral.length >= 10) {
+          setReferralStatus('invalid');
+        } else {
+          setReferralStatus('idle'); // Still typing
+        }
+        return;
+      }
+      
+      // Valid pattern - check against database
+      setReferralStatus('checking');
+      const isValid = await validateReferralCode(referral.toUpperCase());
+      setReferralStatus(isValid ? 'valid' : 'invalid');
+    }, 300); // Faster debounce since we only hit DB on valid pattern
+
+    return () => clearTimeout(timer);
+  }, [referral]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,13 +71,32 @@ function SignupContent() {
     if (password.length < 6) { setError('Security key must be at least 6 characters'); return; }
     
     setLoading(true);
-    // Mimic blockchain latency
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+    // Execute reCAPTCHA
+    let recaptchaToken: string | undefined = undefined;
+    if (executeRecaptcha) {
+      try {
+        recaptchaToken = await executeRecaptcha('signup');
+      } catch (err) {
+        console.error('[RECAPTCHA] execution failed:', err);
+      }
+    }
 
-    const result = signup(username, email, password, referral || undefined);
+    const result = await signup(username, email, password, referral || undefined, recaptchaToken);
 
-    if (result.success) {
-        router.push('/wallet-waitlist/dashboard');
+    if (result.success && result.user) {
+        if (result.user.referredBy) {
+          setCelebrationData({
+            referrer: result.user.referredBy.username,
+            points: 75  // Corrected from 50
+          });
+          // Redirect after 3 seconds
+          setTimeout(() => {
+            router.push('/wallet-waitlist/dashboard');
+          }, 3000);
+        } else {
+          router.push('/wallet-waitlist/dashboard');
+        }
     } else {
       setError(result.error || 'Identity initialization failed');
       setLoading(false);
@@ -113,7 +167,7 @@ function SignupContent() {
                       </div>
                       <div>
                         <p className="text-[#2547D0] text-xs font-bold uppercase tracking-wider">Protocol Bonus</p>
-                        <p className="text-white/60 text-[10px]">+50 PXP Points Applied</p>
+                        <p className="text-white/60 text-[10px]">+75 PXP Points Applied</p>
                       </div>
                     </div>
                     <div className="font-mono text-[10px] text-[#2547D0]">[ {referralCode} ]</div>
@@ -180,6 +234,52 @@ function SignupContent() {
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
+                </div>
+              </div>
+
+              {/* Referral Field (Manual) */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Referral Code (Optional)</label>
+                  <AnimatePresence>
+                     {referralStatus === 'invalid' && (
+                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[10px] text-red-500 font-bold uppercase tracking-wider">
+                           Invalid Code
+                        </motion.span>
+                     )}
+                     {referralStatus === 'valid' && (
+                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[10px] text-green-500 font-bold uppercase tracking-wider">
+                           Code Applied
+                        </motion.span>
+                     )}
+                  </AnimatePresence>
+                </div>
+                <div className="relative group/input">
+                  <FaGift className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${referralStatus === 'valid' ? 'text-green-500' : referralStatus === 'invalid' ? 'text-red-500' : 'text-gray-600 group-focus-within/input:text-[#2547D0]'}`} />
+                  <input
+                    type="text"
+                    value={referral}
+                    onChange={(e) => {
+                       setReferral(e.target.value.toUpperCase());
+                       if (e.target.value === '') setReferralStatus('idle');
+                    }}
+                    placeholder="PNX-XXXXXX"
+                    className={`w-full pl-12 pr-10 py-4 bg-white/[0.03] border rounded-xl text-sm transition-all focus:outline-none placeholder:text-gray-700 uppercase font-mono ${
+                      referralStatus === 'invalid' 
+                        ? 'border-red-500/50 focus:border-red-500' 
+                        : referralStatus === 'valid' 
+                          ? 'border-green-500/50 focus:border-green-500' 
+                          : 'border-white/5 focus:border-[#2547D0]/50'
+                    }`}
+                  />
+                  {/* Status Indicator Icon */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    {referralStatus === 'checking' && (
+                       <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    )}
+                    {referralStatus === 'valid' && <FaCheck className="w-3 h-3 text-green-500" />}
+                    {referralStatus === 'invalid' && <FaXmark className="w-3 h-3 text-red-500 cursor-pointer" onClick={() => { setReferral(''); setReferralStatus('idle'); }} />}
+                  </div>
                 </div>
               </div>
 
@@ -275,14 +375,95 @@ function SignupContent() {
            <span className="text-[9px] font-mono">SECURED BY ALEO ZK-PROOF</span>
         </div>
       </motion.div>
+
+      {/* Celebration Overlay */}
+      <AnimatePresence>
+        {celebrationData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="text-center p-12 max-w-lg"
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 1 }}
+                className="w-24 h-24 bg-[#2547D0] rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(37,71,208,0.5)]"
+              >
+                <FaGift className="w-10 h-10 text-white" />
+              </motion.div>
+              
+              <h2 className="text-4xl font-black tracking-tighter mb-4 uppercase">
+                Genesis Bonus <br />
+                <span className="text-[#2547D0]">Unlocked</span>
+              </h2>
+              
+              <p className="text-white/60 mb-8 font-mono text-sm leading-relaxed">
+                You were invited by <span className="text-white font-bold">{celebrationData.referrer}</span>. <br />
+                As a priority recruit, you've earned <span className="text-[#2547D0] font-bold">+{celebrationData.points} PXP</span> for initializing your node.
+              </p>
+
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-1 w-48 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 5, ease: "linear" }}
+                    className="h-full bg-[#2547D0]"
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-white/30 tracking-widest uppercase animate-pulse">
+                  Redirecting to Command Center in 5s...
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Particle Effects (Subtle Background) */}
+            <div className="absolute inset-0 pointer-events-none">
+                {[...Array(20)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ 
+                      x: Math.random() * window.innerWidth, 
+                      y: Math.random() * window.innerHeight,
+                      opacity: 0,
+                      scale: 0 
+                    }}
+                    animate={{ 
+                      y: [null, Math.random() * -100],
+                      opacity: [0, 0.5, 0],
+                      scale: [0, 1, 0]
+                    }}
+                    transition={{ 
+                      duration: 2 + Math.random() * 2,
+                      repeat: Infinity,
+                      delay: Math.random() * 2
+                    }}
+                    className="absolute w-1 h-1 bg-[#2547D0] rounded-full"
+                  />
+                ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#020202] text-white flex items-center justify-center">Loading...</div>}>
-      <SignupContent />
-    </Suspense>
+    <ReCaptchaWrapper>
+      <Suspense fallback={<div className="min-h-screen bg-[#020202] text-white flex items-center justify-center">Loading...</div>}>
+        <SignupContent />
+      </Suspense>
+    </ReCaptchaWrapper>
   );
 }

@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  redis:
+    image: redis:8.4
+    container_name: penxchain-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/redis/data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+
+  redisinsight:
+    image: redis/redis-insight:latest
+    container_name: penxchain_redisinsight
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+
+networks:
+  default:
+    name: penxchain_network

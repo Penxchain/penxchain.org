@@ -95,7 +95,9 @@ export default function PenxProtocolRedesign() {
 
         {/* Right Side: Actions */}
         <div className="flex items-center gap-4 md:gap-6 pointer-events-auto">
-          <button className="hidden md:block font-mono text-xs hover:text-[#2547D0] transition-colors">
+          <button
+          onClick={() => router.push('/docs/PENXCHAIN Tokenomics IDO UPDATED PRE-TGE.pdf')}
+          className="hidden md:block font-mono text-xs hover:text-[#2547D0] transition-colors">
             [ WHITEPAPER_V1 ]
           </button>
           <button 
@@ -215,7 +217,7 @@ export default function PenxProtocolRedesign() {
               <p className="text-lg text-gray-400 font-light leading-relaxed">
                 The network is currently in <span className="font-space text-[#2547D0]">Stealth Mode</span>. 
                 <span className="text-white"> PXP</span> is your proof of early support. Points collected during the waitlist phase will be 
-                <span className="text-white"> converted to $PENX tokens</span> at TGE. 
+                <span className="text-white"> converted to $PENX tokens</span> at post-TGE. 
                 The earlier you join, the higher your allocation multiplier.
               </p>
            </div>

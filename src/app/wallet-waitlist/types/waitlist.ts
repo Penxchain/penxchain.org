@@ -9,25 +9,27 @@ export interface User {
   level: number;
   rank: number;
   referralCode: string;
-  referredBy?: string;
+  referredBy?: { username: string };
   referralCount: number;
   completedTasks: string[];
   joinedAt: string;
   lastDailyReset: string;
   avatarId?: string; // Avatar selection
   lastBonusClaim?: string; // ISO date string for bonus PXP claim tracking
+  role?: 'USER' | 'ADMIN' | 'SUPERADMIN';
+  token?: string; // JWT Token
 }
 
 export interface Task {
   id: string;
-  type: 'social' | 'daily';
+  type: 'social' | 'daily' | 'one_time';
   title: string;
   description: string;
   points: number;
   icon: string;
   link?: string;
   repeatable: boolean;
-  category: 'twitter' | 'telegram' | 'discord' | 'linkedin' | 'github' | 'engagement';
+  category: string;
 }
 
 export interface LeaderboardEntry {

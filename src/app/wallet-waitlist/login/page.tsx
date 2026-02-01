@@ -9,9 +9,12 @@ import { FaXTwitter, FaGoogle } from 'react-icons/fa6';
 import { login } from '../lib/waitlist-auth';
 import AnimatedBackground from '../components/AnimatedBackground';
 import Scene3D from '../components/Scene3D';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import ReCaptchaWrapper from '../components/ReCaptchaWrapper';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,10 +26,17 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    // Simulate network delay for realism
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Execute reCAPTCHA
+    let recaptchaToken: string | undefined = undefined;
+    if (executeRecaptcha) {
+      try {
+        recaptchaToken = await executeRecaptcha('login');
+      } catch (err) {
+        console.error('[RECAPTCHA] execution failed:', err);
+      }
+    }
 
-    const result = login(email, password);
+    const result = await login(email, password, recaptchaToken);
 
     if (result.success) {
       router.push('/wallet-waitlist/dashboard');
@@ -211,5 +221,13 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <ReCaptchaWrapper>
+      <LoginContent />
+    </ReCaptchaWrapper>
   );
 }

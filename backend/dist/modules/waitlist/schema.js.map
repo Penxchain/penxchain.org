@@ -1,0 +1,1 @@
+{"version":3,"file":"schema.js","sourceRoot":"","sources":["../../../src/modules/waitlist/schema.ts"],"names":[],"mappings":";;;;;;AAAA,8CAAoB;AAEP,QAAA,kBAAkB,GAAG,aAAC,CAAC,MAAM,CAAC;IACzC,MAAM,EAAE,aAAC,CAAC,MAAM,EAAE,CAAC,IAAI,EAAE;IAEzB,KAAK,EAAE,aAAC,CAAC,MAAM,EAAE,CAAC,QAAQ,EAAE;CAC7B,CAAC,CAAC;AAEU,QAAA,mBAAmB,GAAG,aAAC,CAAC,MAAM,CAAC,EAE3C,CAAC,CAAC"}

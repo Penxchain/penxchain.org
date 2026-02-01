@@ -8,12 +8,33 @@ export default function DailyTaskTimer() {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
-    const updateTimer = () => {
-      setTimeLeft(getTimeUntilDailyReset());
+    let interval: NodeJS.Timeout;
+    const fetchTime = async () => {
+      const initialTime = await getTimeUntilDailyReset();
+      setTimeLeft(initialTime);
+      
+      // Calculate countdown locally after initial sync to avoid spamming API
+      // Total seconds
+      let totalSeconds = initialTime.hours * 3600 + initialTime.minutes * 60 + initialTime.seconds;
+
+      interval = setInterval(() => {
+        totalSeconds -= 1;
+        if (totalSeconds < 0) {
+           // Refetch or reset? Refetch to be safe with server
+           clearInterval(interval);
+           fetchTime();
+           return;
+        }
+        
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        
+        setTimeLeft({ hours: h, minutes: m, seconds: s });
+      }, 1000);
     };
 
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
+    fetchTime();
 
     return () => clearInterval(interval);
   }, []);

@@ -1,0 +1,84 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String?  @unique
+  password      String?  // Hashed
+  walletAddress String?  @unique // Made optional
+  role          Role     @default(USER)
+  pxpBalance    Int      @default(0)
+  isBanned      Boolean  @default(false)
+  
+  referralCode  String   @unique @default(cuid())
+  referredById  String?
+  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]   @relation("Referrals")
+
+  tasks         UserTask[]
+
+  lastBonusClaim DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([pxpBalance])
+  @@index([createdAt])
+}
+
+enum TaskType {
+  SOCIAL
+  DAILY
+  ONE_TIME
+}
+
+model Task {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  type          TaskType
+  points        Int
+  link          String?
+  icon          String?
+  category      String?  @default("engagement")
+  validationKey String? 
+  isActive      Boolean  @default(true)
+  
+  // For SOCIAL tasks: duration in days before auto-deletion (1-30)
+  durationDays  Int?
+  // Auto-calculated expiration date (createdAt + durationDays)
+  expiresAt     DateTime?
+  
+  userTasks     UserTask[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model UserTask {
+  id          String   @id @default(uuid())
+  userId      String
+  taskId      String
+  status      String   @default("COMPLETED") 
+  
+  user        User     @relation(fields: [userId], references: [id])
+  task        Task     @relation(fields: [taskId], references: [id])
+
+  completedAt DateTime @default(now())
+
+  @@unique([userId, taskId])
+}

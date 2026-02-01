@@ -29,7 +29,7 @@ const MissionSection = () => {
 
           <h2 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 text-white leading-[0.9]">
             Data belongs <br />
-            <span className="text-[#2547D0] italic">in the Dark.</span>
+            <span className="text-[#2547D0] italic">to YOU.</span>
           </h2>
 
           <div className="space-y-8 text-lg text-gray-400 font-light leading-relaxed">

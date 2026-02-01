@@ -1,179 +1,150 @@
-import { Task, User } from '../types/waitlist';
-import { allTasks, socialTasks, dailyTasks } from './waitlist-data';
-import { getCurrentUser, updateCurrentUser } from './waitlist-auth';
+import { apiRequest } from "@/lib/api-client";
+import { User, Task } from "../types/waitlist";
+import {
+  getCurrentUser,
+  getUserIdFromStorage,
+  updateCurrentUser,
+} from "./waitlist-auth";
 
-// Check if daily tasks should reset
-function shouldResetDailyTasks(user: User): boolean {
-  const lastReset = new Date(user.lastDailyReset);
-  const now = new Date();
-  
-  // Reset if it's a new day (UTC)
-  return lastReset.getUTCDate() !== now.getUTCDate() ||
-         lastReset.getUTCMonth() !== now.getUTCMonth() ||
-         lastReset.getUTCFullYear() !== now.getUTCFullYear();
-}
+// Fetch all tasks with status
+export async function getTasks(): Promise<(Task & { completed: boolean })[]> {
+  try {
+    // Backend returns { success: true, tasks: [...] }
+    const result = await apiRequest<{ success: boolean; tasks: any[] } | any[]>("/waitlist/tasks");
 
-// Reset daily tasks
-function resetDailyTasks(user: User): User {
-  const dailyTaskIds = dailyTasks.map((t) => t.id);
-  const updatedCompletedTasks = user.completedTasks.filter(
-    (taskId) => !dailyTaskIds.includes(taskId)
-  );
-
-  return {
-    ...user,
-    completedTasks: updatedCompletedTasks,
-    lastDailyReset: new Date().toISOString(),
-  };
-}
-
-// Get all tasks with completion status
-export function getTasksWithStatus(): (Task & { completed: boolean })[] {
-  const user = getCurrentUser();
-  if (!user) return allTasks.map((task) => ({ ...task, completed: false }));
-
-  // Check if daily reset needed
-  let currentUser = user;
-  if (shouldResetDailyTasks(user)) {
-    const resetUser = resetDailyTasks(user);
-    updateCurrentUser(resetUser);
-    currentUser = resetUser;
-  }
-
-  return allTasks.map((task) => ({
-    ...task,
-    completed: currentUser.completedTasks.includes(task.id),
-  }));
-}
-
-// Get social tasks with status
-export function getSocialTasks(): (Task & { completed: boolean })[] {
-  const user = getCurrentUser();
-  if (!user) return socialTasks.map((task) => ({ ...task, completed: false }));
-
-  return socialTasks.map((task) => ({
-    ...task,
-    completed: user.completedTasks.includes(task.id),
-  }));
-}
-
-// Get daily tasks with status
-export function getDailyTasks(): (Task & { completed: boolean })[] {
-  const user = getCurrentUser();
-  if (!user) return dailyTasks.map((task) => ({ ...task, completed: false }));
-
-  // Check if daily reset needed
-  let currentUser = user;
-  if (shouldResetDailyTasks(user)) {
-    const resetUser = resetDailyTasks(user);
-    updateCurrentUser(resetUser);
-    currentUser = resetUser;
-  }
-
-  return dailyTasks.map((task) => ({
-    ...task,
-    completed: currentUser.completedTasks.includes(task.id),
-  }));
-}
-
-// Check if task can be completed
-export function checkTaskEligibility(taskId: string): { eligible: boolean; reason?: string } {
-  const user = getCurrentUser();
-  if (!user) {
-    return { eligible: false, reason: 'User not logged in' };
-  }
-
-  const task = allTasks.find((t) => t.id === taskId);
-  if (!task) {
-    return { eligible: false, reason: 'Task not found' };
-  }
-
-  // Check if already completed and not repeatable
-  if (!task.repeatable && user.completedTasks.includes(taskId)) {
-    return { eligible: false, reason: 'Task already completed' };
-  }
-
-  // For daily tasks, check if already completed today
-  if (task.repeatable && task.type === 'daily') {
-    if (shouldResetDailyTasks(user)) {
-      return { eligible: true };
+    if (!result.ok) {
+        console.error("getTasks failed:", result.error);
+        return [];
     }
-    if (user.completedTasks.includes(taskId)) {
-      return { eligible: false, reason: 'Come back tomorrow for this task' };
-    }
-  }
 
-  return { eligible: true };
+    // Handle both wrapped { tasks: [...] } and raw array responses
+    const data = result.data;
+    const tasks = Array.isArray(data) ? data : (data?.tasks ?? []);
+
+    if (!Array.isArray(tasks)) {
+      console.warn("getTasks: unexpected response shape", data);
+      return [];
+    }
+
+    // Map backend Enums to Frontend types with defensive checks
+    return tasks.map((t) => {
+      const rawType = (t?.type ?? "").toString();
+      const type = rawType ? rawType.toLowerCase() : "unknown";
+      const status = (t?.status ?? "").toString().toUpperCase();
+
+      return {
+        ...t,
+        type: type, // already lowercased above
+        category: t?.category || "twitter",
+        repeatable: status === "DAILY" || type === "daily",
+        completed: status === "COMPLETED" || String(t?.completed) === "true",
+      };
+    });
+  } catch (error) {
+    // If it's a transient network error, return empty tasks silently
+    if ((error as any)?.isNetworkError) {
+      return [];
+    }
+    console.error("Failed to fetch tasks", error);
+    return [];
+  }
+}
+
+export async function getTimeUntilDailyReset(): Promise<{
+  hours: number;
+  minutes: number;
+  seconds: number;
+}> {
+  try {
+    const result = await apiRequest<{ timeUntilReset: number }>("/waitlist/time");
+    if (!result.ok) throw result.error;
+    const data = result.data;
+    const ms = data.timeUntilReset;
+
+    const seconds = Math.floor((ms / 1000) % 60);
+    const minutes = Math.floor((ms / 1000 / 60) % 60);
+    const hours = Math.floor((ms / 1000 / 60 / 60) % 24);
+
+    return { hours, minutes, seconds };
+  } catch (e) {
+    if ((e as any)?.isNetworkError) {
+      console.debug(
+        "Server time fetch skipped (network):",
+        (e as any).message || e,
+      );
+    } else {
+      console.error("Failed to fetch server time", e);
+    }
+    // Fallback to local calculation only if server fails to prevent UI crash
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCHours(24, 0, 0, 0);
+    const diff = tomorrow.getTime() - now.getTime();
+
+    return {
+      hours: Math.floor((diff / 1000 / 60 / 60) % 24),
+      minutes: Math.floor((diff / 1000 / 60) % 60),
+      seconds: Math.floor((diff / 1000) % 60),
+    };
+  }
 }
 
 // Complete a task
-export function completeTask(taskId: string): { success: boolean; points?: number; error?: string } {
-  const user = getCurrentUser();
-  if (!user) {
-    return { success: false, error: 'User not logged in' };
-  }
+export async function completeTask(
+  taskId: string,
+): Promise<{ success: boolean; points?: number; newBalance?: number; error?: string }> {
+  try {
+    const result = await apiRequest<{ 
+      success?: boolean; 
+      pxpBalance: number; 
+      pointsEarned?: number; 
+      id?: string;
+    }>(
+      "/waitlist/tasks/complete",
+      {
+        method: "POST",
+        body: { taskId },
+      },
+    );
 
-  const eligibility = checkTaskEligibility(taskId);
-  if (!eligibility.eligible) {
-    return { success: false, error: eligibility.reason };
-  }
+    if (!result.ok) throw result.error;
 
-  const task = allTasks.find((t) => t.id === taskId);
-  if (!task) {
-    return { success: false, error: 'Task not found' };
-  }
+    const data = result.data;
+    const newBalance = data.pxpBalance ?? 0;
+    // Use backend's pointsEarned if available, otherwise calculate from difference
+    const currentUser = getCurrentUser();
+    const oldPxp = currentUser?.points || 0;
+    const pointsEarned = data.pointsEarned ?? (newBalance - oldPxp);
 
-  // Update user's completed tasks and points
-  const updatedUser = updateCurrentUser({
-    completedTasks: [...user.completedTasks, taskId],
-    points: user.points + task.points,
-  });
-
-  if (!updatedUser) {
-    return { success: false, error: 'Failed to update user' };
-  }
-
-  return { success: true, points: task.points };
-}
-
-// Get time until daily reset
-export function getTimeUntilDailyReset(): { hours: number; minutes: number; seconds: number } {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setUTCHours(24, 0, 0, 0);
-
-  const diff = tomorrow.getTime() - now.getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  return { hours, minutes, seconds };
-}
-
-// Get user's task completion stats
-export function getTaskStats() {
-  const user = getCurrentUser();
-  if (!user) {
-    return {
-      totalCompleted: 0,
-      socialCompleted: 0,
-      dailyCompleted: 0,
-      totalPoints: 0,
+    // Update local storage with new balance
+    const updatedUser = updateCurrentUser({
+      points: newBalance,
+    });
+    
+    // Dispatch event so dashboard updates in real-time without refresh
+    if (typeof window !== 'undefined' && updatedUser) {
+      window.dispatchEvent(new CustomEvent('penxchain:user-updated', { detail: updatedUser }));
+    }
+    
+    return { 
+      success: true, 
+      points: pointsEarned > 0 ? pointsEarned : 1,
+      newBalance 
     };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
+}
 
-  const socialCompleted = socialTasks.filter((task) =>
-    user.completedTasks.includes(task.id)
-  ).length;
 
-  const dailyCompleted = dailyTasks.filter((task) =>
-    user.completedTasks.includes(task.id)
-  ).length;
+export function getSocialTasks(tasks: (Task & { completed: boolean })[]) {
+  return tasks.filter((t) => t.type.toLowerCase() === "social");
+}
 
-  return {
-    totalCompleted: user.completedTasks.length,
-    socialCompleted,
-    dailyCompleted,
-    totalPoints: user.points,
-  };
+export function getDailyTasks(tasks: (Task & { completed: boolean })[]) {
+  return tasks.filter((t) => t.type.toLowerCase() === "daily");
+}
+
+export function getOneTimeTasks(tasks: (Task & { completed: boolean })[]) {
+  return tasks.filter((t) => t.type.toLowerCase() === "one_time" || (t as any).type === "ONE_TIME");
 }

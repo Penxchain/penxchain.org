@@ -1,6 +1,6 @@
 import type { User } from '../types/waitlist';
 
-const BONUS_AMOUNT = 35;
+const BONUS_AMOUNT = 75;
 const COOLDOWN_HOURS = 24;
 
 /**
@@ -13,9 +13,13 @@ export function canClaimBonus(user: User): boolean {
 
   const lastClaim = new Date(user.lastBonusClaim);
   const now = new Date();
-  const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+  
+  const isSameDay = 
+    lastClaim.getUTCFullYear() === now.getUTCFullYear() &&
+    lastClaim.getUTCMonth() === now.getUTCMonth() &&
+    lastClaim.getUTCDate() === now.getUTCDate();
 
-  return hoursSinceLastClaim >= COOLDOWN_HOURS;
+  return !isSameDay;
 }
 
 /**
@@ -26,16 +30,18 @@ export function getNextBonusTime(user: User): Date | null {
     return null; // Can claim now
   }
 
-  const lastClaim = new Date(user.lastBonusClaim);
-  const nextClaim = new Date(lastClaim.getTime() + COOLDOWN_HOURS * 60 * 60 * 1000);
+  const nextReset = new Date();
+  nextReset.setUTCHours(24, 0, 0, 0); // Next midnight UTC
   
-  return nextClaim;
+  return nextReset;
 }
 
 /**
  * Get hours remaining until next bonus
  */
 export function getHoursUntilNextBonus(user: User): number {
+  if (canClaimBonus(user)) return 0;
+  
   const nextTime = getNextBonusTime(user);
   if (!nextTime) return 0;
 
