@@ -1,9 +1,16 @@
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-/**
- * Standard Prisma Client initialization for Railway.
- * We avoid driver adapters here to prevent validation errors in the container environment.
- */
+const connectionString = `${process.env.DATABASE_URL}`;
+
+const pool = new Pool({ 
+  connectionString,
+  ssl: { rejectUnauthorized: false } 
+});
+const adapter = new PrismaPg(pool);
+
 export const db = new PrismaClient({
+  adapter,
   log: ['warn', 'error'],
 });

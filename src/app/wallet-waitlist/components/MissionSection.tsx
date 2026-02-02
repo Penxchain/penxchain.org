@@ -28,7 +28,7 @@ const MissionSection = () => {
           </div>
 
           <h2 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 text-white leading-[0.9]">
-            Data belongs <br />
+            Privacy belongs <br />
             <span className="text-[#2547D0] italic">to YOU.</span>
           </h2>
 
