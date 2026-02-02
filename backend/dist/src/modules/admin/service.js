@@ -225,7 +225,7 @@ async function cleanupExpiredTasks() {
             console.log("[ADMIN] No expired tasks to cleanup");
             return { deleted: 0 };
         }
-        const expiredIds = expiredTasks.map(t => t.id);
+        const expiredIds = expiredTasks.map((t) => t.id);
         await db_1.db.$transaction(async (tx) => {
             await tx.userTask.deleteMany({
                 where: { taskId: { in: expiredIds } },
@@ -234,7 +234,7 @@ async function cleanupExpiredTasks() {
                 where: { id: { in: expiredIds } },
             });
         });
-        console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks:`, expiredTasks.map(t => t.title));
+        console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks:`, expiredTasks.map((t) => t.title));
         return { deleted: expiredTasks.length, tasks: expiredTasks };
     }
     catch (err) {

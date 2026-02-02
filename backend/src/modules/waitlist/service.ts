@@ -40,13 +40,13 @@ export async function getTasksWithUserStatus(userId: string) {
     ]);
 
     // Create a map for O(1) lookup
-    const taskStatusMap = new Map(userTasks.map(ut => [ut.taskId, ut]));
+    const taskStatusMap = new Map(userTasks.map((ut: any) => [ut.taskId, ut]));
 
     // Calculate today's start in UTC for daily task reset check
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    return tasks.map((task) => {
-      const userTask = taskStatusMap.get(task.id);
+    return tasks.map((task: any) => {
+      const userTask: any = taskStatusMap.get(task.id);
       let status = userTask?.status || "PENDING";
       let completedAt = userTask?.completedAt || null;
 

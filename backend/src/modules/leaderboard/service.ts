@@ -57,12 +57,12 @@ export async function getLeaderboard(limit: number = 50) {
           select: { id: true, username: true, walletAddress: true, pxpBalance: true }, // Select pxpBalance to double check or display DB value
         });
 
-        const userMap = new Map(users.map((u) => [u.id, u]));
+        const userMap = new Map(users.map((u: any) => [u.id, u]));
 
         // Filter out any missing users (e.g. deleted but still in Redis)
         return members
           .map((m) => {
-             const user = userMap.get(m.value);
+             const user: any = userMap.get(m.value);
              if (!user) return null;
              return {
                id: m.value,
@@ -95,7 +95,7 @@ export async function getLeaderboard(limit: number = 50) {
       take: limit,
     });
 
-    return users.map((u) => ({
+    return users.map((u: any) => ({
       ...u,
       points: u.pxpBalance,
     }));

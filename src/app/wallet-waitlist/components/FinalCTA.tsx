@@ -46,7 +46,7 @@ const FinalCTA = () => {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-6xl md:text-9xl font-bold tracking-tighter text-white mb-8 leading-[0.85]"
         >
-          Go <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#2547D0] to-blue-900">Dark.</span>
+          Privacy by <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#2547D0] to-blue-900">Design.</span>
         </motion.h2>
 
         <motion.p 
@@ -55,12 +55,16 @@ const FinalCTA = () => {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-xl md:text-2xl text-gray-500 font-jakarta font-light mb-16 max-w-2xl mx-auto leading-relaxed"
         >
-          The public ledger sees everything. <br className="hidden md:block" />
-          <span className="text-gray-300">Penxchain sees only you.</span> Secure your spot in the Genesis block.
+          The public ledger exposes everything. <br className="hidden md:block" />
+          <span className="text-gray-300">PENXCHAIN protects what matters.</span>
+          <br /><br />
+          A zero-knowledge blockchain ecosystem built for private value transfer, confidential activity, and real-world adoption.
+          <br /><br />
+          <span className="text-[#2547D0] font-bold">Secure your spot in the Genesis Block.</span>
         </motion.p>
 
         {/* Premium Button */}
-        <motion.button 
+        <motion.button
           onClick={() => router.push('/wallet-waitlist/signup')}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

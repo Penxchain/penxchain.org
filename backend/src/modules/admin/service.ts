@@ -18,7 +18,7 @@ export async function getSystemStats() {
     return {
       totalUsers,
       totalPoints: totalPoints._sum.pxpBalance || 0,
-      topReferrers: topReferrers.map((u) => ({
+      topReferrers: topReferrers.map((u: any) => ({
         username: u.username,
         count: u._count.referrals,
       })),
@@ -261,7 +261,7 @@ export async function cleanupExpiredTasks() {
       return { deleted: 0 };
     }
 
-    const expiredIds = expiredTasks.map(t => t.id);
+    const expiredIds = expiredTasks.map((t: any) => t.id);
 
     // Use transaction for atomic cleanup
     await db.$transaction(async (tx: any) => {
@@ -276,7 +276,7 @@ export async function cleanupExpiredTasks() {
       });
     });
 
-    console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks:`, expiredTasks.map(t => t.title));
+    console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks:`, expiredTasks.map((t: any) => t.title));
     return { deleted: expiredTasks.length, tasks: expiredTasks };
   } catch (err: any) {
     console.error("[ADMIN] Error cleaning up expired tasks:", err?.message);

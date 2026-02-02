@@ -39,7 +39,7 @@ async function getTasksWithUserStatus(userId) {
                 select: { taskId: true, status: true, completedAt: true }
             })
         ]);
-        const taskStatusMap = new Map(userTasks.map(ut => [ut.taskId, ut]));
+        const taskStatusMap = new Map(userTasks.map((ut) => [ut.taskId, ut]));
         const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
         return tasks.map((task) => {
             const userTask = taskStatusMap.get(task.id);
