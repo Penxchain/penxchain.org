@@ -16,6 +16,6 @@
     "experimentalDecorators": true,
     "sourceMap": true
   },
-  "include": ["src/**/*", "prisma.config.ts"],
+  "include": ["src/**/*", "prisma.config.ts", "scripts/**/*"],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts"]
 }

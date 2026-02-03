@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prisma:generate": "npx prisma generate --schema=backend/prisma/schema.prisma"
+  },
+  "prisma": {
+    "schema": "backend/prisma/schema.prisma"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
