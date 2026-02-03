@@ -7,7 +7,7 @@ import { cleanupExpiredTasks } from './modules/admin/service';
 async function start() {
   try {
     console.log("Starting server...");
-    console.log("Environment PORT:", env.PORT);
+    console.log("Starting server (Build: Robust Config v1)...");
     const app = await buildApp();
     console.log("App built successfully");
     
