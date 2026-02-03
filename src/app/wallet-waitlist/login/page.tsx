@@ -106,11 +106,13 @@ function LoginContent() {
               
               {/* Email Field */}
               <div className="space-y-2">
-                <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID / Email</label>
+                <label htmlFor="email" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID / Email</label>
                 <div className="relative group/input">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
                     id="email"
+                    name="email"
+                    autoComplete="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -124,13 +126,15 @@ function LoginContent() {
               {/* Password Field */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                   <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Security Key</label>
+                   <label htmlFor="password" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Security Key</label>
                    <button type="button" className="text-[10px] font-mono text-[#2547D0]/70 hover:text-[#2547D0] transition-colors">FORGOT_KEY?</button>
                 </div>
                 <div className="relative group/input">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
                     id="password"
+                    name="password"
+                    autoComplete="current-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

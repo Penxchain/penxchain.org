@@ -62,11 +62,11 @@ export default function ReferralCard({ user }: ReferralCardProps) {
 
       {/* Referral Code */}
       <div className="mb-4">
-        <label className="block text-white/30 text-[9px] uppercase tracking-wider mb-2 font-mono">
+        <label htmlFor="referral-code-display" className="block text-white/30 text-[9px] uppercase tracking-wider mb-2 font-mono">
           Your Referral Code
         </label>
         <div className="flex items-center gap-2">
-          <div className="flex-1 px-4 py-3 bg-white/[0.02] border border-white/5 rounded-lg text-white font-mono text-sm tracking-widest text-center uppercase">
+          <div id="referral-code-display" className="flex-1 px-4 py-3 bg-white/[0.02] border border-white/5 rounded-lg text-white font-mono text-sm tracking-widest text-center uppercase">
             {user.referralCode || "—"}
           </div>
           <button
@@ -84,11 +84,14 @@ export default function ReferralCard({ user }: ReferralCardProps) {
 
       {/* Referral Link */}
       <div className="mb-4">
-        <label className="block text-white/30 text-[9px] uppercase tracking-wider mb-2 font-mono">
+        <label htmlFor="referral-link-input" className="block text-white/30 text-[9px] uppercase tracking-wider mb-2 font-mono">
           Uplink Address
         </label>
         <div className="flex items-center gap-2">
           <input
+            id="referral-link-input"
+            name="referral-link"
+            autoComplete="off"
             type="text"
             value={referralLink}
             readOnly

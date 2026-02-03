@@ -81,12 +81,15 @@ export default function Waitlist() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Input Field */}
             <div className="relative group">
+              <label htmlFor="waitlist-email" className="sr-only">Email Address</label>
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-blue-600 transition-colors">
                 <Mail size={20} />
               </div>
               <input
+                id="waitlist-email"
                 type="email"
                 name="email"
+                autoComplete="email"
                 placeholder="Enter Your Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

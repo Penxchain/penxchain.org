@@ -181,12 +181,15 @@ function SignupContent() {
               {/* Username Field */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                   <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID</label>
-                   <span className="text-[10px] font-mono text-gray-700">{username.length}/{MAX_USERNAME_LENGTH}</span>
+                  <label htmlFor="username" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID</label>
+                  <span className="text-[10px] font-mono text-gray-700">{username.length}/{MAX_USERNAME_LENGTH}</span>
                 </div>
                 <div className="relative group/input">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
+                    id="username"
+                    name="username"
+                    autoComplete="username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -200,10 +203,13 @@ function SignupContent() {
 
               {/* Email Field */}
               <div className="space-y-2">
-                <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Email Address</label>
+                <label htmlFor="email" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Email Address</label>
                 <div className="relative group/input">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
+                    id="email"
+                    name="email"
+                    autoComplete="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -216,10 +222,13 @@ function SignupContent() {
 
               {/* Password Field */}
               <div className="space-y-2">
-                <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Password</label>
+                <label htmlFor="password" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Password</label>
                 <div className="relative group/input">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
+                    id="password"
+                    name="password"
+                    autoComplete="new-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -240,7 +249,7 @@ function SignupContent() {
               {/* Referral Field (Manual) */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Referral Code (Optional)</label>
+                  <label htmlFor="referral" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Referral Code (Optional)</label>
                   <AnimatePresence>
                      {referralStatus === 'invalid' && (
                         <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[10px] text-red-500 font-bold uppercase tracking-wider">
@@ -257,6 +266,8 @@ function SignupContent() {
                 <div className="relative group/input">
                   <FaGift className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${referralStatus === 'valid' ? 'text-green-500' : referralStatus === 'invalid' ? 'text-red-500' : 'text-gray-600 group-focus-within/input:text-[#2547D0]'}`} />
                   <input
+                    id="referral"
+                    name="referral"
                     type="text"
                     value={referral}
                     onChange={(e) => {
@@ -287,6 +298,7 @@ function SignupContent() {
               <label className="flex items-start gap-3 cursor-pointer group/check">
                 <div className="relative mt-1">
                   <input
+                    id="terms"
                     type="checkbox"
                     checked={agreedToTerms}
                     onChange={(e) => setAgreedToTerms(e.target.checked)}
