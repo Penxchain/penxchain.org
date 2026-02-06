@@ -20,7 +20,7 @@ export async function requireActiveUser(
 
     const user = await db.user.findFirst({
       where: { id: jwtUser.id },
-      select: { isBanned: true },
+      select: { isBanned: true, banReason: true },
     });
 
     if (!user) {
@@ -28,7 +28,8 @@ export async function requireActiveUser(
     }
 
     if (user.isBanned) {
-      throw new ForbiddenError("Account suspended");
+      const reason = user.banReason || "Account suspended";
+      throw new ForbiddenError(`Account banned: ${reason}. Contact support@penxchain.com if you believe this is an error.`);
     }
   } catch (err) {
     if (err instanceof ForbiddenError || err instanceof UnauthorizedError) {
@@ -39,3 +40,4 @@ export async function requireActiveUser(
     throw new UnauthorizedError(); 
   }
 }
+

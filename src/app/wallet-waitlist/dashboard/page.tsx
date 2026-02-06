@@ -76,7 +76,7 @@ export default function DashboardPage() {
         setSocialTasks(getSocialTasks(tasks));
         setDailyTasks(getDailyTasks(tasks));
         setOneTimeTasks(getOneTimeTasks(tasks));
-        
+
         await updateLeaderboardData();
       } catch (err) {
         console.error("Failed to load tasks", err);
@@ -97,7 +97,8 @@ export default function DashboardPage() {
     };
 
     window.addEventListener("penxchain:user-updated", handleUserUpdate);
-    return () => window.removeEventListener("penxchain:user-updated", handleUserUpdate);
+    return () =>
+      window.removeEventListener("penxchain:user-updated", handleUserUpdate);
   }, []);
 
   const updateLeaderboardData = async () => {
@@ -134,24 +135,36 @@ export default function DashboardPage() {
 
   const handleBonusClaim = async () => {
     try {
-       const result = await apiRequest<{ success: boolean; points: number; bonusEarned: number }>('/waitlist/bonus/claim', { method: 'POST' });
-       if (result.ok && result.data.success) {
-           const updatedUser = updateCurrentUser({
-               points: result.data.points,
-               lastBonusClaim: new Date().toISOString()
-           });
-           if (updatedUser) {
-             setUser(updatedUser);
-             window.dispatchEvent(new CustomEvent('penxchain:user-updated', { detail: updatedUser }));
-           }
-           setShowBonusReward(true);
-           setShowBonusTooltip(false);
-           await updateLeaderboardData();
-       } else {
-           console.log("Bonus claim not available:", result.ok ? result.data : result.error?.message);
-       }
+      const result = await apiRequest<{
+        success: boolean;
+        bonusEarned?: number;
+        newBalance?: number;
+        points?: number;
+      }>("/waitlist/bonus/claim", { method: "POST" });
+      if (result.ok && result.data && result.data.success) {
+        const newBal =
+          result.data.newBalance ?? result.data.points ?? undefined;
+        const updatedUser = updateCurrentUser({
+          ...(typeof newBal !== "undefined" ? { points: newBal } : {}),
+          lastBonusClaim: new Date().toISOString(),
+        });
+        if (updatedUser) {
+          setUser(updatedUser);
+          window.dispatchEvent(
+            new CustomEvent("penxchain:user-updated", { detail: updatedUser }),
+          );
+        }
+        setShowBonusReward(true);
+        setShowBonusTooltip(false);
+        await updateLeaderboardData();
+      } else {
+        console.log(
+          "Bonus claim not available:",
+          result.ok ? result.data : result.error?.message,
+        );
+      }
     } catch (e) {
-        console.error("Bonus claim error:", e);
+      console.error("Bonus claim error:", e);
     }
   };
 
@@ -180,33 +193,42 @@ export default function DashboardPage() {
   return (
     <WaitlistLayout>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-        
+        @import url("https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
         * {
-          font-family: 'Libre Franklin', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-family:
+            "Libre Franklin",
+            -apple-system,
+            BlinkMacSystemFont,
+            sans-serif;
         }
-        
+
         .mono {
-          font-family: 'JetBrains Mono', 'Courier New', monospace;
+          font-family: "JetBrains Mono", "Courier New", monospace;
         }
-        
+
         .fine-grid {
-          background-image: 
-            linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+            linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0.015) 1px,
+              transparent 1px
+            );
           background-size: 50px 50px;
         }
-        
+
         .anodized {
-          background: linear-gradient(145deg, 
+          background: linear-gradient(
+            145deg,
             rgba(39, 39, 42, 0.4) 0%,
             rgba(24, 24, 27, 0.6) 50%,
             rgba(39, 39, 42, 0.4) 100%
           );
         }
-        
+
         .brushed-metal::before {
-          content: '';
+          content: "";
           position: absolute;
           inset: 0;
           background: linear-gradient(
@@ -239,11 +261,11 @@ export default function DashboardPage() {
         {/* IDENTITY HEADER */}
         <section className="relative">
           <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          
+
           <div className="pt-8 pb-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-end">
             {/* Identity */}
             <div className="lg:col-span-2">
-              <motion.h1 
+              <motion.h1
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white tracking-tighter mb-3 uppercase leading-none"
@@ -269,7 +291,7 @@ export default function DashboardPage() {
                   const now = Date.now();
                   if (now - lastClickTime < 500) {
                     if (canClaimBonus(user)) {
-                       handleBonusClaim();
+                      handleBonusClaim();
                     }
                     setClickCount(0);
                     setLastClickTime(0);
@@ -288,13 +310,29 @@ export default function DashboardPage() {
                       <stop offset="100%" stopColor="#3B5FE0" />
                     </linearGradient>
                   </defs>
-                  
-                  <circle cx="64" cy="64" r="58" className="stroke-zinc-900" strokeWidth="2" fill="none" />
-                  <circle cx="64" cy="64" r="54" className="stroke-zinc-900/40" strokeWidth="8" fill="none" />
-                  
+
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="58"
+                    className="stroke-zinc-900"
+                    strokeWidth="2"
+                    fill="none"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="54"
+                    className="stroke-zinc-900/40"
+                    strokeWidth="8"
+                    fill="none"
+                  />
+
                   <motion.circle
                     initial={{ strokeDashoffset: 339 }}
-                    animate={{ strokeDashoffset: 339 - (339 * levelInfo.progress) / 100 }}
+                    animate={{
+                      strokeDashoffset: 339 - (339 * levelInfo.progress) / 100,
+                    }}
                     transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
                     cx="64"
                     cy="64"
@@ -361,8 +399,16 @@ export default function DashboardPage() {
         {/* STATS BAR */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-zinc-900/30">
           {[
-            { label: "Balance", value: safePoints.toLocaleString(), unit: "PXP" },
-            { label: "Completed", value: safeCompletedTasks.length, unit: "Tasks" },
+            {
+              label: "Balance",
+              value: safePoints.toLocaleString(),
+              unit: "PXP",
+            },
+            {
+              label: "Completed",
+              value: safeCompletedTasks.length,
+              unit: "Tasks",
+            },
             { label: "Network", value: safeReferralCount, unit: "Refs" },
           ].map((stat, i) => (
             <div
@@ -376,7 +422,9 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold text-white group-hover:text-zinc-100 transition-colors">
                   {stat.value}
                 </p>
-                <span className="mono text-xs text-zinc-700 font-medium">{stat.unit}</span>
+                <span className="mono text-xs text-zinc-700 font-medium">
+                  {stat.unit}
+                </span>
               </div>
             </div>
           ))}
@@ -394,7 +442,7 @@ export default function DashboardPage() {
                 </h2>
                 <DailyTaskTimer />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {loadingTasks ? (
                   <>
@@ -403,7 +451,11 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   dailyTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onComplete={handleTaskComplete} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onComplete={handleTaskComplete}
+                    />
                   ))
                 )}
               </div>
@@ -416,10 +468,11 @@ export default function DashboardPage() {
                   Core Verification
                 </h2>
                 <span className="mono text-[10px] text-zinc-600 font-medium">
-                  {oneTimeTasks.filter(t => t.completed).length}/{oneTimeTasks.length}
+                  {oneTimeTasks.filter((t) => t.completed).length}/
+                  {oneTimeTasks.length}
                 </span>
               </div>
-              
+
               <div className="space-y-4">
                 {loadingTasks ? (
                   <>
@@ -429,7 +482,11 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   oneTimeTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onComplete={handleTaskComplete} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onComplete={handleTaskComplete}
+                    />
                   ))
                 )}
               </div>
@@ -443,10 +500,11 @@ export default function DashboardPage() {
                     Ecosystem Expansion
                   </h2>
                   <span className="mono text-[10px] text-zinc-600 font-medium">
-                    {socialTasks.filter(t => t.completed).length}/{socialTasks.length}
+                    {socialTasks.filter((t) => t.completed).length}/
+                    {socialTasks.length}
                   </span>
                 </div>
-                
+
                 <div className="space-y-4">
                   {loadingTasks ? (
                     <>
@@ -455,7 +513,11 @@ export default function DashboardPage() {
                     </>
                   ) : (
                     socialTasks.map((task) => (
-                      <TaskCard key={task.id} task={task} onComplete={handleTaskComplete} />
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onComplete={handleTaskComplete}
+                      />
                     ))
                   )}
                 </div>
@@ -496,9 +558,7 @@ export default function DashboardPage() {
                 <p className="mono text-xs font-bold text-white uppercase tracking-wider">
                   Restricted
                 </p>
-                <p className="mono text-[10px] text-zinc-700 mt-1">
-                  Q2 2026
-                </p>
+                <p className="mono text-[10px] text-zinc-700 mt-1">Q2 2026</p>
               </div>
 
               <div className="opacity-20 blur-sm pointer-events-none">

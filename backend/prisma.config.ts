@@ -3,6 +3,7 @@ import "dotenv/config";
 
 console.log("Loading prisma.config.ts");
 console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Defined" : "Undefined");
+console.log("DIRECT_DATABASE_URL:", process.env.DIRECT_DATABASE_URL ? "Defined" : "Undefined");
 
 export default defineConfig({
   schema: './prisma/schema.prisma',
@@ -10,7 +11,6 @@ export default defineConfig({
     path: './prisma/migrations',
   },
   datasource: {
-    url: process.env.DATABASE_URL,
-    shadowDatabaseUrl: process.env.DIRECT_URL,
+    url: process.env.DIRECT_DATABASE_URL!,
   },
 });

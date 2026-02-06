@@ -56,6 +56,9 @@ async function getAllUsers(page = 1, limit = 20) {
                 createdAt: true,
                 walletAddress: true,
                 isBanned: true,
+                banReason: true,
+                bannedAt: true,
+                dailyStreak: true,
             },
         });
         const total = await db_1.db.user.count();
@@ -66,8 +69,11 @@ async function getAllUsers(page = 1, limit = 20) {
         throw new errors_1.InternalServerError();
     }
 }
-async function banUser(userId, actorRole) {
+async function banUser(userId, actorRole, reason) {
     try {
+        if (!reason || reason.trim().length < 5) {
+            throw new errors_1.ForbiddenError("Ban reason must be at least 5 characters");
+        }
         const target = await db_1.db.user.findUnique({ where: { id: userId }, select: { role: true } });
         if (!target)
             throw new errors_1.NotFoundError("User not found");
@@ -83,7 +89,12 @@ async function banUser(userId, actorRole) {
         }
         return await db_1.db.user.update({
             where: { id: userId },
-            data: { isBanned: true, pxpBalance: 0 },
+            data: {
+                isBanned: true,
+                pxpBalance: 0,
+                banReason: reason.trim(),
+                bannedAt: new Date(),
+            },
         });
     }
     catch (err) {
@@ -97,7 +108,11 @@ async function unbanUser(userId) {
     try {
         return await db_1.db.user.update({
             where: { id: userId },
-            data: { isBanned: false },
+            data: {
+                isBanned: false,
+                banReason: null,
+                bannedAt: null,
+            },
         });
     }
     catch (err) {

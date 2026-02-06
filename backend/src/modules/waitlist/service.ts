@@ -1,6 +1,53 @@
 import { db } from "../../shared/database/db";
 import { redisClient } from "../../shared/redis";
 
+/**
+ * Updates the user's daily streak based on their last activity date.
+ * - Same day: No change
+ * - Yesterday: Increment streak
+ * - Older/null: Reset streak to 1
+ */
+async function updateDailyStreak(userId: string, tx?: any) {
+  const prisma = tx || db;
+  
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dailyStreak: true, lastActivityDate: true },
+  });
+
+  if (!user) return;
+
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  
+  let newStreak = 1;
+  
+  if (user.lastActivityDate) {
+    const lastDate = new Date(user.lastActivityDate);
+    const lastDateUTC = new Date(Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate()));
+    
+    const diffMs = todayUTC.getTime() - lastDateUTC.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      // Same day - don't update, already counted
+      return;
+    } else if (diffDays === 1) {
+      // Yesterday - increment streak
+      newStreak = user.dailyStreak + 1;
+    }
+    // else: More than 1 day gap - reset to 1 (default)
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      dailyStreak: newStreak,
+      lastActivityDate: todayUTC,
+    },
+  });
+}
+
 export async function getTasksWithUserStatus(userId: string) {
   const tasks = await db.task.findMany({
     where: { isActive: true },
@@ -23,6 +70,16 @@ export async function getTasksWithUserStatus(userId: string) {
 
 export async function completeTask(userId: string, taskId: string) {
   return db.$transaction(async (tx: any) => {
+    // 0. Check if user is banned
+    const userCheck = await tx.user.findUnique({
+      where: { id: userId },
+      select: { isBanned: true },
+    });
+    
+    if (userCheck?.isBanned) {
+      throw new Error("Account is banned. Cannot complete tasks.");
+    }
+
     // 1. Get Task
     const task = await tx.task.findFirst({
       where: { id: taskId },
@@ -36,23 +93,50 @@ export async function completeTask(userId: string, taskId: string) {
       throw new Error("Task is not active");
     }
 
-    // 2. Check if already completed
+    // 2. Check if user has a UserTask record
     const existing = await tx.userTask.findFirst({
       where: { userId, taskId },
+      select: { id: true, completedAt: true },
     });
+
+    const now = new Date();
 
     if (existing) {
-      throw new Error("Task already completed");
-    }
+      // If the task is DAILY, allow re-completion once per UTC day by updating the record
+      if (task.type === "DAILY") {
+        const last = existing.completedAt
+          ? new Date(existing.completedAt)
+          : null;
+        if (last) {
+          const sameUTCDate =
+            last.getUTCFullYear() === now.getUTCFullYear() &&
+            last.getUTCMonth() === now.getUTCMonth() &&
+            last.getUTCDate() === now.getUTCDate();
 
-    // 3. Create UserTask
-    await tx.userTask.create({
-      data: {
-        userId,
-        taskId,
-        status: "COMPLETED",
-      },
-    });
+          if (sameUTCDate) {
+            throw new Error("Task already completed for today");
+          }
+        }
+
+        // Update existing record's completedAt/status so it can be completed again today
+        await tx.userTask.update({
+          where: { id: existing.id },
+          data: { completedAt: now, status: "COMPLETED" },
+        });
+      } else {
+        // Non-repeatable tasks cannot be completed again
+        throw new Error("Task already completed");
+      }
+    } else {
+      // 3. Create UserTask
+      await tx.userTask.create({
+        data: {
+          userId,
+          taskId,
+          status: "COMPLETED",
+        },
+      });
+    }
 
     // 4. Update User Points
     const updatedUser = await tx.user.update({
@@ -63,7 +147,10 @@ export async function completeTask(userId: string, taskId: string) {
       select: { id: true, pxpBalance: true },
     });
 
-    // 5. Update Redis leaderboard if available (best-effort)
+    // 5. Update daily streak
+    await updateDailyStreak(userId, tx);
+
+    // 6. Update Redis leaderboard if available (best-effort)
     try {
       if (redisClient) {
         const key = "waitlist:leaderboard";
@@ -91,8 +178,17 @@ export async function getUserStats(userId: string) {
       username: true,
       role: true,
       referralCode: true,
+      dailyStreak: true,
+      lastActivityDate: true,
+      isBanned: true,
+      banReason: true,
+      bannedAt: true,
       _count: {
-        select: { tasks: true, referrals: true },
+        select: { referrals: true },
+      },
+      tasks: {
+        select: { taskId: true },
+        where: { status: "COMPLETED" },
       },
     },
   });
@@ -127,17 +223,22 @@ export function getServerTime() {
 export async function claimDailyReward(userId: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { lastBonusClaim: true, pxpBalance: true }
+    select: { lastBonusClaim: true, pxpBalance: true, isBanned: true },
   });
 
   if (!user) throw new Error("User not found");
+  
+  // Check if user is banned
+  if (user.isBanned) {
+    throw new Error("Account is banned. Cannot claim rewards.");
+  }
 
   const now = new Date();
   const lastClaim = user.lastBonusClaim;
 
   if (lastClaim) {
     const lastClaimDate = new Date(lastClaim);
-    const isSameDay = 
+    const isSameDay =
       lastClaimDate.getUTCFullYear() === now.getUTCFullYear() &&
       lastClaimDate.getUTCMonth() === now.getUTCMonth() &&
       lastClaimDate.getUTCDate() === now.getUTCDate();
@@ -153,14 +254,31 @@ export async function claimDailyReward(userId: string) {
     where: { id: userId },
     data: {
       pxpBalance: { increment: bonusPoints },
-      lastBonusClaim: now
+      lastBonusClaim: now,
     },
-    select: { id: true, pxpBalance: true }
+    select: { id: true, pxpBalance: true },
   });
+
+  // Update daily streak
+  await updateDailyStreak(userId);
+
+  // Update Redis leaderboard
+  try {
+    if (redisClient) {
+      const key = "waitlist:leaderboard";
+      await redisClient.zAdd(key, {
+        score: updatedUser.pxpBalance,
+        value: updatedUser.id,
+      });
+    }
+  } catch (e) {
+    console.warn("Failed to update Redis leaderboard after bonus claim:", e);
+  }
 
   return {
     success: true,
     message: `Claimed ${bonusPoints} PXP!`,
-    newBalance: updatedUser.pxpBalance
+    newBalance: updatedUser.pxpBalance,
   };
 }
+

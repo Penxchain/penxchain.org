@@ -59,6 +59,9 @@ async function buildApp() {
     await app.register(cors_1.default, {
         origin: [env_1.env.FRONTEND_URL],
         credentials: true,
+        methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+        exposedHeaders: ['Content-Type', 'Authorization'],
     });
     await app.register(Promise.resolve().then(() => __importStar(require('@fastify/jwt'))), {
         secret: env_1.env.JWT_SECRET,

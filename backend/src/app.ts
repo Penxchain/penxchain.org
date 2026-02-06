@@ -25,6 +25,10 @@ export async function buildApp() {
   await app.register(cors, {
     origin: [env.FRONTEND_URL],
     credentials: true,
+    // Ensure preflight allows the methods and headers used by the frontend
+    methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    exposedHeaders: ['Content-Type', 'Authorization'],
   });
   await app.register(import('@fastify/jwt'), {
     secret: env.JWT_SECRET,

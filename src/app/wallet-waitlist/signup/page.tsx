@@ -1,64 +1,85 @@
 "use client";
 
-import React, { useState, FormEvent, Suspense } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Mail, Lock, User, Eye, EyeOff, AlertCircle, 
-  ChevronRight, Shield, Fingerprint, Globe 
-} from 'lucide-react';
-import { FaGift, FaXTwitter, FaGoogle, FaCheck, FaXmark } from 'react-icons/fa6';
-import { signup, validateReferralCode } from '../lib/waitlist-auth';
-import AnimatedBackground from '../components/AnimatedBackground';
-import Scene3D from '../components/Scene3D';
-import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
-import ReCaptchaWrapper from '../components/ReCaptchaWrapper';
+import React, { useState, FormEvent, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ChevronRight,
+  Shield,
+  Fingerprint,
+  Globe,
+} from "lucide-react";
+import {
+  FaGift,
+  FaXTwitter,
+  FaGoogle,
+  FaCheck,
+  FaXmark,
+} from "react-icons/fa6";
+import { signup, validateReferralCode } from "../lib/waitlist-auth";
+import AnimatedBackground from "../components/AnimatedBackground";
+import Scene3D from "../components/Scene3D";
+import LegalProtocolsModal from "../components/LegalProtocolsModal";
+import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
+import ReCaptchaWrapper from "../components/ReCaptchaWrapper";
 
 const MAX_USERNAME_LENGTH = 20;
 
 function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const referralCode = searchParams.get('ref');
+  const referralCode = searchParams.get("ref");
   const { executeRecaptcha } = useGoogleReCaptcha();
 
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [referral, setReferral] = useState(referralCode || '');
-  const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [referral, setReferral] = useState(referralCode || "");
+  const [referralStatus, setReferralStatus] = useState<
+    "idle" | "checking" | "valid" | "invalid"
+  >("idle");
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [error, setError] = useState('');
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [celebrationData, setCelebrationData] = useState<{ referrer: string; points: number } | null>(null);
+  const [celebrationData, setCelebrationData] = useState<{
+    referrer: string;
+    points: number;
+  } | null>(null);
 
   // Debounced referral check - only validate when PNX-XXXXXX pattern is complete
   React.useEffect(() => {
     const timer = setTimeout(async () => {
       // Check for complete PNX-XXXXXX pattern (10 chars)
       const isValidPattern = /^PNX-[A-Z0-9]{6}$/i.test(referral);
-      
+
       if (!referral || referral.length === 0) {
-        setReferralStatus('idle');
+        setReferralStatus("idle");
         return;
       }
-      
+
       // If pattern doesn't match, show invalid only when >= 10 chars (fully typed but wrong)
       if (!isValidPattern) {
         if (referral.length >= 10) {
-          setReferralStatus('invalid');
+          setReferralStatus("invalid");
         } else {
-          setReferralStatus('idle'); // Still typing
+          setReferralStatus("idle"); // Still typing
         }
         return;
       }
-      
+
       // Valid pattern - check against database
-      setReferralStatus('checking');
+      setReferralStatus("checking");
       const isValid = await validateReferralCode(referral.toUpperCase());
-      setReferralStatus(isValid ? 'valid' : 'invalid');
+      setReferralStatus(isValid ? "valid" : "invalid");
     }, 300); // Faster debounce since we only hit DB on valid pattern
 
     return () => clearTimeout(timer);
@@ -66,39 +87,55 @@ function SignupContent() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (!agreedToTerms) { setError('Acknowledge the protocol terms to proceed'); return; }
-    if (password.length < 6) { setError('Security key must be at least 6 characters'); return; }
-    
+    setError("");
+    if (!agreedToTerms) {
+      setError("Acknowledge the protocol terms to proceed");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Security key must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
-    
+
     // Execute reCAPTCHA
     let recaptchaToken: string | undefined = undefined;
     if (executeRecaptcha) {
       try {
-        recaptchaToken = await executeRecaptcha('signup');
+        recaptchaToken = await executeRecaptcha("signup");
       } catch (err) {
-        console.error('[RECAPTCHA] execution failed:', err);
+        console.error("[RECAPTCHA] execution failed:", err);
       }
     }
 
-    const result = await signup(username, email, password, referral || undefined, recaptchaToken);
+    const result = await signup(
+      username,
+      email,
+      password,
+      referral || undefined,
+      recaptchaToken,
+    );
 
     if (result.success && result.user) {
-        if (result.user.referredBy) {
-          setCelebrationData({
-            referrer: result.user.referredBy.username,
-            points: 75  // Corrected from 50
-          });
-          // Redirect after 3 seconds
-          setTimeout(() => {
-            router.push('/wallet-waitlist/dashboard');
-          }, 3000);
-        } else {
-          router.push('/wallet-waitlist/dashboard');
-        }
+      // Prefer explicit referral metadata from server
+      const wasReferred = (result as any).wasReferred ?? false;
+      const rewardsApplied = (result as any).rewardsApplied ?? null;
+
+      if (wasReferred || result.user.referredBy) {
+        setCelebrationData({
+          referrer: result.user.referredBy?.username || "your referrer",
+          points: rewardsApplied?.newUser ?? 75,
+        });
+        // Redirect after 3 seconds
+        setTimeout(() => {
+          router.push("/wallet-waitlist/dashboard");
+        }, 3000);
+      } else {
+        router.push("/wallet-waitlist/dashboard");
+      }
     } else {
-      setError(result.error || 'Identity initialization failed');
+      setError(result.error || "Identity initialization failed");
       setLoading(false);
     }
   };
@@ -135,9 +172,13 @@ function SignupContent() {
           >
             <div className="flex items-center gap-2 mb-2">
               <div className="h-[1px] w-8 bg-[#2547D0]" />
-              <span className="text-[#2547D0] font-mono text-[10px] tracking-widest uppercase">Identity Genesis</span>
+              <span className="text-[#2547D0] font-mono text-[10px] tracking-widest uppercase">
+                Identity Genesis
+              </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">Initialize <br /> Access.</h1>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">
+              Initialize <br /> Access.
+            </h1>
           </motion.div>
         </div>
 
@@ -146,9 +187,8 @@ function SignupContent() {
         <div className="relative group">
           {/* Animated Border Glow */}
           <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-[#2547D0]/40 to-transparent rounded-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
-          
+
           <div className="relative bg-[#080808]/80 backdrop-blur-3xl rounded-2xl p-8 md:p-10 border border-white/5 shadow-2xl overflow-hidden">
-            
             {/* Subtle Inner Scanline */}
             <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:100%_4px] opacity-20" />
 
@@ -157,7 +197,7 @@ function SignupContent() {
               {referralCode && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
+                  animate={{ height: "auto", opacity: 1 }}
                   className="mb-8 overflow-hidden"
                 >
                   <div className="bg-[#2547D0]/10 border border-[#2547D0]/30 p-4 rounded-xl flex items-center justify-between">
@@ -166,23 +206,35 @@ function SignupContent() {
                         <FaGift className="w-4 h-4 text-[#2547D0]" />
                       </div>
                       <div>
-                        <p className="text-[#2547D0] text-xs font-bold uppercase tracking-wider">Protocol Bonus</p>
-                        <p className="text-white/60 text-[10px]">+75 PXP Points Applied</p>
+                        <p className="text-[#2547D0] text-xs font-bold uppercase tracking-wider">
+                          Protocol Bonus
+                        </p>
+                        <p className="text-white/60 text-[10px]">
+                          +75 PXP Points Applied
+                        </p>
                       </div>
                     </div>
-                    <div className="font-mono text-[10px] text-[#2547D0]">[ {referralCode} ]</div>
+                    <div className="font-mono text-[10px] text-[#2547D0]">
+                      [ {referralCode} ]
+                    </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-              
               {/* Username Field */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label htmlFor="username" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID</label>
-                  <span className="text-[10px] font-mono text-gray-700">{username.length}/{MAX_USERNAME_LENGTH}</span>
+                  <label
+                    htmlFor="username"
+                    className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1"
+                  >
+                    Identity ID
+                  </label>
+                  <span className="text-[10px] font-mono text-gray-700">
+                    {username.length}/{MAX_USERNAME_LENGTH}
+                  </span>
                 </div>
                 <div className="relative group/input">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
@@ -203,7 +255,12 @@ function SignupContent() {
 
               {/* Email Field */}
               <div className="space-y-2">
-                <label htmlFor="email" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Email Address</label>
+                <label
+                  htmlFor="email"
+                  className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1"
+                >
+                  Email Address
+                </label>
                 <div className="relative group/input">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
@@ -222,14 +279,19 @@ function SignupContent() {
 
               {/* Password Field */}
               <div className="space-y-2">
-                <label htmlFor="password" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Password</label>
+                <label
+                  htmlFor="password"
+                  className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1"
+                >
+                  Password
+                </label>
                 <div className="relative group/input">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
                     id="password"
                     name="password"
                     autoComplete="new-password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -241,7 +303,11 @@ function SignupContent() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -249,47 +315,74 @@ function SignupContent() {
               {/* Referral Field (Manual) */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label htmlFor="referral" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Referral Code (Optional)</label>
+                  <label
+                    htmlFor="referral"
+                    className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1"
+                  >
+                    Referral Code (Optional)
+                  </label>
                   <AnimatePresence>
-                     {referralStatus === 'invalid' && (
-                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[10px] text-red-500 font-bold uppercase tracking-wider">
-                           Invalid Code
-                        </motion.span>
-                     )}
-                     {referralStatus === 'valid' && (
-                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[10px] text-green-500 font-bold uppercase tracking-wider">
-                           Code Applied
-                        </motion.span>
-                     )}
+                    {referralStatus === "invalid" && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-[10px] text-red-500 font-bold uppercase tracking-wider"
+                      >
+                        Invalid Code
+                      </motion.span>
+                    )}
+                    {referralStatus === "valid" && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-[10px] text-green-500 font-bold uppercase tracking-wider"
+                      >
+                        Code Applied
+                      </motion.span>
+                    )}
                   </AnimatePresence>
                 </div>
                 <div className="relative group/input">
-                  <FaGift className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${referralStatus === 'valid' ? 'text-green-500' : referralStatus === 'invalid' ? 'text-red-500' : 'text-gray-600 group-focus-within/input:text-[#2547D0]'}`} />
+                  <FaGift
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${referralStatus === "valid" ? "text-green-500" : referralStatus === "invalid" ? "text-red-500" : "text-gray-600 group-focus-within/input:text-[#2547D0]"}`}
+                  />
                   <input
                     id="referral"
                     name="referral"
                     type="text"
                     value={referral}
                     onChange={(e) => {
-                       setReferral(e.target.value.toUpperCase());
-                       if (e.target.value === '') setReferralStatus('idle');
+                      setReferral(e.target.value.toUpperCase());
+                      if (e.target.value === "") setReferralStatus("idle");
                     }}
                     placeholder="PNX-XXXXXX"
                     className={`w-full pl-12 pr-10 py-4 bg-white/[0.03] border rounded-xl text-sm transition-all focus:outline-none placeholder:text-gray-700 uppercase font-mono ${
-                      referralStatus === 'invalid' 
-                        ? 'border-red-500/50 focus:border-red-500' 
-                        : referralStatus === 'valid' 
-                          ? 'border-green-500/50 focus:border-green-500' 
-                          : 'border-white/5 focus:border-[#2547D0]/50'
+                      referralStatus === "invalid"
+                        ? "border-red-500/50 focus:border-red-500"
+                        : referralStatus === "valid"
+                          ? "border-green-500/50 focus:border-green-500"
+                          : "border-white/5 focus:border-[#2547D0]/50"
                     }`}
                   />
                   {/* Status Indicator Icon */}
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    {referralStatus === 'checking' && (
-                       <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    {referralStatus === "checking" && (
+                      <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                     )}
-                    {referralStatus === 'valid' && <FaCheck className="w-3 h-3 text-green-500" />}
-                    {referralStatus === 'invalid' && <FaXmark className="w-3 h-3 text-red-500 cursor-pointer" onClick={() => { setReferral(''); setReferralStatus('idle'); }} />}
+                    {referralStatus === "valid" && (
+                      <FaCheck className="w-3 h-3 text-green-500" />
+                    )}
+                    {referralStatus === "invalid" && (
+                      <FaXmark
+                        className="w-3 h-3 text-red-500 cursor-pointer"
+                        onClick={() => {
+                          setReferral("");
+                          setReferralStatus("idle");
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -305,11 +398,21 @@ function SignupContent() {
                     className="peer sr-only"
                   />
                   <div className="w-4 h-4 border border-white/20 rounded bg-white/5 peer-checked:bg-[#2547D0] peer-checked:border-[#2547D0] transition-all" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none text-white text-[10px]">✓</div>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none text-white text-[10px]">
+                    ✓
+                  </div>
                 </div>
                 <span className="text-[11px] text-gray-500 group-hover/check:text-gray-300 transition-colors leading-snug">
-                  I authorize the initialization of this identity and agree to the 
-                  <span className="text-white hover:text-[#2547D0] transition-colors px-1 underline underline-offset-4">Legal Protocols</span>.
+                  I authorize the initialization of this identity and 
+                  agree to the
+                  <button
+                    type="button"
+                    onClick={() => setIsLegalModalOpen(true)}
+                    className="text-white hover:text-[#2547D0] transition-colors px-1 underline underline-offset-4 cursor-pointer"
+                  >
+                    Legal Protocols
+                  </button>
+                  .
                 </span>
               </label>
 
@@ -328,7 +431,47 @@ function SignupContent() {
                 )}
               </AnimatePresence>
 
-             
+              {/* Friendly CTAs for common conflict errors */}
+              {error && (
+                <div className="mt-3">
+                  {error.includes("Email") && (
+                    <div className="flex gap-3">
+                      <Link
+                        href="/wallet-waitlist/login"
+                        className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all text-xs rounded-md"
+                      >
+                        Log in
+                      </Link>
+                      <Link
+                        href="/wallet-waitlist/forgot"
+                        className="px-4 py-2 bg-transparent border border-white/10 text-xs rounded-md hover:bg-white/5"
+                      >
+                        Forgot password
+                      </Link>
+                    </div>
+                  )}
+                  {error.includes("Username") && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setUsername("")}
+                        className="px-4 py-2 bg-white/5 border border-white/10 text-xs rounded-md"
+                      >
+                        Choose another username
+                      </button>
+                    </div>
+                  )}
+                  {error.includes("Wallet") && (
+                    <div className="flex gap-3">
+                      <Link
+                        href="/wallet-waitlist/login"
+                        className="px-4 py-2 bg-white/5 border border-white/10 text-xs rounded-md"
+                      >
+                        Resolve linked wallet
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Submit Button - The "Hot" Interaction */}
               <button
@@ -355,23 +498,41 @@ function SignupContent() {
             </form>
 
             <div className="mt-10 pt-10 border-t border-white/5 space-y-4">
-               <p className="text-[10px] font-mono text-center text-gray-600 tracking-widest uppercase">External Identity Bridges</p>
-               <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => alert('Bridge Active Soon')} className="flex items-center justify-center gap-3 py-3 bg-white/[0.03] border border-white/5 hover:border-white/20 rounded-xl transition-all">
-                    <FaXTwitter className="w-4 h-4" />
-                    <span className="text-[11px] font-bold uppercase">X (Twitter)</span>
-                  </button>
-                  <button onClick={() => alert('Bridge Active Soon')} className="flex items-center justify-center gap-3 py-3 bg-white/[0.03] border border-white/5 hover:border-white/20 rounded-xl transition-all">
-                    <FaGoogle className="w-4 h-4" />
-                    <span className="text-[11px] font-bold uppercase">GOOGLE</span>
-                  </button>
-               </div>
+              <p className="text-[10px] font-mono text-center text-gray-600 tracking-widest uppercase">
+                External Identity Bridges
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => alert("Bridge Active Soon")}
+                  className="flex items-center justify-center gap-3 py-3 bg-white/[0.03] border border-white/5 hover:border-white/20 rounded-xl transition-all"
+                >
+                  <FaXTwitter className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase">
+                    X (Twitter)
+                  </span>
+                </button>
+                <button
+                  onClick={() => alert("Bridge Active Soon")}
+                  className="flex items-center justify-center gap-3 py-3 bg-white/[0.03] border border-white/5 hover:border-white/20 rounded-xl transition-all"
+                >
+                  <FaGoogle className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase">
+                    GOOGLE
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="mt-8 text-center">
-               <Link href="/wallet-waitlist/login" className="text-xs text-gray-500 hover:text-[#2547D0] transition-colors">
-                  Already registered? <span className="font-bold text-white ml-1">RESUME_SESSION</span>
-               </Link>
+              <Link
+                href="/wallet-waitlist/login"
+                className="text-xs text-gray-500 hover:text-[#2547D0] transition-colors"
+              >
+                Already registered?{" "}
+                <span className="font-bold text-white ml-1">
+                  RESUME_SESSION
+                </span>
+              </Link>
             </div>
           </div>
         </div>
@@ -379,12 +540,12 @@ function SignupContent() {
         {/* Footer Meta */}
         <div className="mt-8 flex justify-between px-2 opacity-40 grayscale group-hover:grayscale-0 transition-all">
           <Scene3D />
-           <div className="flex gap-4 items-center">
-             <Shield className="w-3 h-3" />
-             <Fingerprint className="w-3 h-3" />
-             <Globe className="w-3 h-3" />
-           </div>
-           <span className="text-[9px] font-mono">SECURED BY ALEO ZK-PROOF</span>
+          <div className="flex gap-4 items-center">
+            <Shield className="w-3 h-3" />
+            <Fingerprint className="w-3 h-3" />
+            <Globe className="w-3 h-3" />
+          </div>
+          <span className="text-[9px] font-mono">SECURED BY ALEO ZK-PROOF</span>
         </div>
       </motion.div>
 
@@ -403,24 +564,32 @@ function SignupContent() {
               className="text-center p-12 max-w-lg"
             >
               <motion.div
-                animate={{ 
+                animate={{
                   scale: [1, 1.2, 1],
-                  rotate: [0, 5, -5, 0]
+                  rotate: [0, 5, -5, 0],
                 }}
                 transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 1 }}
                 className="w-24 h-24 bg-[#2547D0] rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(37,71,208,0.5)]"
               >
                 <FaGift className="w-10 h-10 text-white" />
               </motion.div>
-              
+
               <h2 className="text-4xl font-black tracking-tighter mb-4 uppercase">
                 Genesis Bonus <br />
                 <span className="text-[#2547D0]">Unlocked</span>
               </h2>
-              
+
               <p className="text-white/60 mb-8 font-mono text-sm leading-relaxed">
-                You were invited by <span className="text-white font-bold">{celebrationData.referrer}</span>. <br />
-                As a priority recruit, you've earned <span className="text-[#2547D0] font-bold">+{celebrationData.points} PXP</span> for initializing your node.
+                You were invited by{" "}
+                <span className="text-white font-bold">
+                  {celebrationData.referrer}
+                </span>
+                . <br />
+                As a priority recruit, you've earned{" "}
+                <span className="text-[#2547D0] font-bold">
+                  +{celebrationData.points} PXP
+                </span>{" "}
+                for initializing your node.
               </p>
 
               <div className="flex flex-col items-center gap-4">
@@ -440,32 +609,37 @@ function SignupContent() {
 
             {/* Particle Effects (Subtle Background) */}
             <div className="absolute inset-0 pointer-events-none">
-                {[...Array(20)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ 
-                      x: Math.random() * window.innerWidth, 
-                      y: Math.random() * window.innerHeight,
-                      opacity: 0,
-                      scale: 0 
-                    }}
-                    animate={{ 
-                      y: [null, Math.random() * -100],
-                      opacity: [0, 0.5, 0],
-                      scale: [0, 1, 0]
-                    }}
-                    transition={{ 
-                      duration: 2 + Math.random() * 2,
-                      repeat: Infinity,
-                      delay: Math.random() * 2
-                    }}
-                    className="absolute w-1 h-1 bg-[#2547D0] rounded-full"
-                  />
-                ))}
+              {[...Array(20)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    opacity: 0,
+                    scale: 0,
+                  }}
+                  animate={{
+                    y: [null, Math.random() * -100],
+                    opacity: [0, 0.5, 0],
+                    scale: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 2 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                  }}
+                  className="absolute w-1 h-1 bg-[#2547D0] rounded-full"
+                />
+              ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <LegalProtocolsModal 
+        isOpen={isLegalModalOpen} 
+        onClose={() => setIsLegalModalOpen(false)} 
+      />
     </div>
   );
 }
@@ -473,7 +647,13 @@ function SignupContent() {
 export default function SignupPage() {
   return (
     <ReCaptchaWrapper>
-      <Suspense fallback={<div className="min-h-screen bg-[#020202] text-white flex items-center justify-center">Loading...</div>}>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center">
+            Loading...
+          </div>
+        }
+      >
         <SignupContent />
       </Suspense>
     </ReCaptchaWrapper>

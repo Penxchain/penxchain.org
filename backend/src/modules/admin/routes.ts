@@ -104,8 +104,11 @@ export async function adminRoutes(app: FastifyInstance) {
     {
       schema: {
         params: z.object({ id: z.string() }),
+        body: z.object({ 
+          reason: z.string().min(5, "Ban reason must be at least 5 characters") 
+        }),
         tags: ["Admin"],
-        summary: "Ban a user",
+        summary: "Ban a user (requires reason)",
         querystring: z.object({}).passthrough(),
       },
     },

@@ -31,8 +31,9 @@ async function getUsersHandler(request, reply) {
 }
 async function banUserHandler(request, reply) {
     const { id } = request.params;
+    const { reason } = request.body || {};
     const user = request.user;
-    const updated = await (0, service_1.banUser)(id, user.role);
+    const updated = await (0, service_1.banUser)(id, user.role, reason);
     return reply.send({ success: true, user: updated });
 }
 async function unbanUserHandler(request, reply) {

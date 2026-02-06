@@ -45,6 +45,9 @@ export async function getAllUsers(page: number = 1, limit: number = 20) {
         createdAt: true,
         walletAddress: true,
         isBanned: true,
+        banReason: true,
+        bannedAt: true,
+        dailyStreak: true,
       },
     });
     const total = await db.user.count();
@@ -56,8 +59,12 @@ export async function getAllUsers(page: number = 1, limit: number = 20) {
   }
 }
 
-export async function banUser(userId: string, actorRole: string) {
+export async function banUser(userId: string, actorRole: string, reason: string) {
   try {
+    if (!reason || reason.trim().length < 5) {
+      throw new ForbiddenError("Ban reason must be at least 5 characters");
+    }
+
     const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
     
     if (!target) throw new NotFoundError("User not found");
@@ -79,7 +86,12 @@ export async function banUser(userId: string, actorRole: string) {
 
     return await db.user.update({
       where: { id: userId },
-      data: { isBanned: true, pxpBalance: 0 },
+      data: { 
+        isBanned: true, 
+        pxpBalance: 0,
+        banReason: reason.trim(),
+        bannedAt: new Date(),
+      },
     });
   } catch (err: any) {
     console.error("[ADMIN] Database error in banUser:", err?.message);
@@ -92,7 +104,11 @@ export async function unbanUser(userId: string) {
   try {
     return await db.user.update({
       where: { id: userId },
-      data: { isBanned: false },
+      data: { 
+        isBanned: false,
+        banReason: null,
+        bannedAt: null,
+      },
     });
   } catch (err: any) {
     console.error("[ADMIN] Database error in unbanUser:", err?.message);

@@ -1,6 +1,6 @@
 import type { User } from '../types/waitlist';
 
-const BONUS_AMOUNT = 75;
+const BONUS_AMOUNT = 100;
 const COOLDOWN_HOURS = 24;
 
 /**

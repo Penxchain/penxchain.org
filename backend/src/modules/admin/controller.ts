@@ -41,8 +41,9 @@ export async function banUserHandler(
   reply: any,
 ) {
   const { id } = request.params;
+  const { reason } = request.body || {};
   const user = request.user as { role: string };
-  const updated = await banUser(id, user.role);
+  const updated = await banUser(id, user.role, reason);
   return reply.send({ success: true, user: updated });
 }
 

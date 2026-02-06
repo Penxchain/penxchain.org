@@ -1,69 +1,55 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  USER
-  ADMIN
-  SUPERADMIN
+datasource db {
+  provider = "postgresql"
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  username      String?  @unique
-  password      String?  // Hashed
-  walletAddress String?  @unique // Made optional
-  role          Role     @default(USER)
-  pxpBalance    Int      @default(0)
-  isBanned      Boolean  @default(false)
-  
-  referralCode  String   @unique @default(cuid())
-  referredById  String?
-  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
-  referrals     User[]   @relation("Referrals")
-
-  tasks         UserTask[]
-
-  lastBonusClaim DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String     @id @default(uuid())
+  email            String     @unique
+  username         String?    @unique
+  password         String?
+  walletAddress    String?    @unique
+  role             Role       @default(USER)
+  pxpBalance       Int        @default(0)
+  isBanned         Boolean    @default(false)
+  banReason        String?
+  bannedAt         DateTime?
+  dailyStreak      Int        @default(0)
+  lastActivityDate DateTime?
+  referralCode     String     @unique @default(cuid())
+  referredById     String?
+  referralRewarded Boolean    @default(false)
+  deviceId         String?
+  lastBonusClaim   DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  referredBy       User?      @relation("Referrals", fields: [referredById], references: [id])
+  referrals        User[]     @relation("Referrals")
+  tasks            UserTask[]
 
   @@index([pxpBalance])
   @@index([createdAt])
 }
 
-enum TaskType {
-  SOCIAL
-  DAILY
-  ONE_TIME
-}
-
 model Task {
-  id            String   @id @default(uuid())
+  id            String     @id @default(uuid())
   title         String
   description   String
   type          TaskType
   points        Int
   link          String?
   icon          String?
-  category      String?  @default("engagement")
-  validationKey String? 
-  isActive      Boolean  @default(true)
-  
-  // For SOCIAL tasks: duration in days before auto-deletion (1-30)
+  category      String?    @default("engagement")
+  validationKey String?
+  isActive      Boolean    @default(true)
   durationDays  Int?
-  // Auto-calculated expiration date (createdAt + durationDays)
   expiresAt     DateTime?
-  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   userTasks     UserTask[]
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 
   @@index([expiresAt])
 }
@@ -72,12 +58,22 @@ model UserTask {
   id          String   @id @default(uuid())
   userId      String
   taskId      String
-  status      String   @default("COMPLETED") 
-  
-  user        User     @relation(fields: [userId], references: [id])
-  task        Task     @relation(fields: [taskId], references: [id])
-
+  status      String   @default("COMPLETED")
   completedAt DateTime @default(now())
+  task        Task     @relation(fields: [taskId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, taskId])
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum TaskType {
+  SOCIAL
+  DAILY
+  ONE_TIME
 }

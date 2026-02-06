@@ -4,9 +4,11 @@ import { apiRequest } from "@/lib/api-client";
 // Check referral code validity
 export async function validateReferralCode(code: string): Promise<boolean> {
   if (!code || code.length < 3) return false;
-  
+
   try {
-    const result = await apiRequest<{ valid: boolean }>(`/auth/check-referral?code=${code}`);
+    const result = await apiRequest<{ valid: boolean }>(
+      `/auth/check-referral?code=${code}`,
+    );
     return result.ok ? !!result.data?.valid : false;
   } catch (error) {
     console.error("[AUTH] Referral check failed:", error);
@@ -15,6 +17,35 @@ export async function validateReferralCode(code: string): Promise<boolean> {
 }
 
 const STORAGE_KEY = "penxchain_waitlist_user";
+const DEVICE_KEY = "penxchain_device_id";
+
+function getOrCreateDeviceId(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const stored = localStorage.getItem(DEVICE_KEY); // string | null
+    if (stored && stored.length > 5) return stored;
+
+    // Prefer secure uuid when available
+    let id: string;
+    if (
+      typeof crypto !== "undefined" &&
+      typeof (crypto as any).randomUUID === "function"
+    ) {
+      id = (crypto as any).randomUUID();
+    } else {
+      id = `dev-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+    }
+
+    try {
+      localStorage.setItem(DEVICE_KEY, id);
+    } catch (e) {
+      // ignore storage errors
+    }
+    return id;
+  } catch (e) {
+    return undefined;
+  }
+}
 
 // Helper to save session
 function saveSession(user: User) {
@@ -49,13 +80,24 @@ export async function login(
     // If input contains '@', treat as email login, else treat as wallet login
     const isEmail = emailOrWallet.includes("@");
     const body = isEmail
-      ? { email: emailOrWallet.toLowerCase(), password: passwordOrSignature, recaptchaToken }
-      : { walletAddress: emailOrWallet, signature: passwordOrSignature, recaptchaToken };
+      ? {
+          email: emailOrWallet.toLowerCase(),
+          password: passwordOrSignature,
+          recaptchaToken,
+        }
+      : {
+          walletAddress: emailOrWallet,
+          signature: passwordOrSignature,
+          recaptchaToken,
+        };
 
-    console.debug(`[AUTH] Attempting login via ${isEmail ? "email" : "wallet"}:`, {
-      identifier: emailOrWallet,
-      hasCredential: !!passwordOrSignature,
-    });
+    console.debug(
+      `[AUTH] Attempting login via ${isEmail ? "email" : "wallet"}:`,
+      {
+        identifier: emailOrWallet,
+        hasCredential: !!passwordOrSignature,
+      },
+    );
 
     const result = await apiRequest<any>("/auth/login", {
       method: "POST",
@@ -85,10 +127,45 @@ export async function login(
       lastBonusClaim: backendUser.lastBonusClaim,
       role: backendUser.role || "USER",
       token: backendUser.token,
+      // Streak tracking
+      dailyStreak: backendUser.dailyStreak ?? 0,
+      lastActivityDate: backendUser.lastActivityDate,
+      // Ban info
+      isBanned: backendUser.isBanned ?? false,
+      banReason: backendUser.banReason,
+      bannedAt: backendUser.bannedAt,
     };
+
+    // login should not surface referral flags
 
     saveSession(user);
     broadcastSessionUpdate(user);
+    // Fetch server-side counts (referrals, rank, authoritative points)
+    try {
+      const statsRes = await apiRequest<any>("/waitlist/stats");
+      if (statsRes.ok && statsRes.data) {
+        const stats = statsRes.data;
+        const updated = {
+          ...user,
+          points: stats.pxpBalance ?? user.points,
+          rank: stats.rank ?? user.rank,
+          referralCount: stats._count?.referrals ?? user.referralCount,
+          completedTasks: stats.tasks ? stats.tasks.map((t: any) => t.taskId) : user.completedTasks,
+          dailyStreak: stats.dailyStreak ?? user.dailyStreak,
+          lastActivityDate: stats.lastActivityDate ?? user.lastActivityDate,
+          isBanned: stats.isBanned ?? user.isBanned,
+          banReason: stats.banReason ?? user.banReason,
+          bannedAt: stats.bannedAt ?? user.bannedAt,
+        } as User;
+        saveSession(updated);
+        broadcastSessionUpdate(updated);
+        return { success: true, user: updated };
+      }
+    } catch (e) {
+      // Non-fatal - keep the session we already saved
+      console.warn("[AUTH] Failed to fetch user stats after login/signup:", e);
+    }
+
     return { success: true, user };
   } catch (error: any) {
     console.error("[AUTH] Unexpected error during login:", error.message);
@@ -119,9 +196,17 @@ export async function signup(
   recaptchaToken?: string, // Added for bot protection
 ): Promise<AuthResponse> {
   try {
+    const deviceId = getOrCreateDeviceId();
     const result = await apiRequest<any>("/auth/signup", {
       method: "POST",
-      body: { username, email: email.toLowerCase(), password, referralCode, recaptchaToken },
+      body: {
+        username,
+        email: email.toLowerCase(),
+        password,
+        referralCode,
+        recaptchaToken,
+        deviceId,
+      },
     });
 
     if (!result.ok) {
@@ -131,6 +216,8 @@ export async function signup(
 
     // Normalize backend response to frontend User interface
     const backendUser = result.data;
+    const wasReferred = backendUser?.wasReferred ?? false;
+    const rewardsApplied = backendUser?.rewardsApplied ?? null;
     const user: User = {
       id: backendUser.id,
       username: backendUser.username || username,
@@ -140,7 +227,6 @@ export async function signup(
       level: calculateLevel(backendUser.pxpBalance ?? 0),
       rank: 0,
       referralCode: backendUser.referralCode || "",
-      referredBy: backendUser.referredById ? { username: "Referrer" } : undefined,
       referralCount: 0,
       completedTasks: [],
       joinedAt: backendUser.createdAt || new Date().toISOString(),
@@ -151,7 +237,26 @@ export async function signup(
 
     saveSession(user);
     broadcastSessionUpdate(user);
-    return { success: true, user };
+    // Fetch server-side counts (referrals, rank, authoritative points)
+    try {
+      const statsRes = await apiRequest<any>("/waitlist/stats");
+      if (statsRes.ok && statsRes.data) {
+        const stats = statsRes.data;
+        const updated = {
+          ...user,
+          points: stats.pxpBalance ?? user.points,
+          rank: stats.rank ?? user.rank,
+          referralCount: stats._count?.referrals ?? user.referralCount,
+        } as User;
+        saveSession(updated);
+        broadcastSessionUpdate(updated);
+        return { success: true, user: updated, wasReferred, rewardsApplied };
+      }
+    } catch (e) {
+      console.warn("[AUTH] Failed to fetch user stats after login/signup:", e);
+    }
+
+    return { success: true, user, wasReferred, rewardsApplied };
   } catch (error: any) {
     console.error("[AUTH] Unexpected error during signup:", error.message);
     return { success: false, error: error.message };
@@ -194,4 +299,3 @@ export function updateCurrentUser(updates: Partial<User>): User | null {
   broadcastSessionUpdate(updatedUser);
   return updatedUser;
 }
-

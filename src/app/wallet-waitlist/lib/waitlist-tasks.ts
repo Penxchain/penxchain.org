@@ -10,11 +10,13 @@ import {
 export async function getTasks(): Promise<(Task & { completed: boolean })[]> {
   try {
     // Backend returns { success: true, tasks: [...] }
-    const result = await apiRequest<{ success: boolean; tasks: any[] } | any[]>("/waitlist/tasks");
+    const result = await apiRequest<{ success: boolean; tasks: any[] } | any[]>(
+      "/waitlist/tasks",
+    );
 
     if (!result.ok) {
-        console.error("getTasks failed:", result.error);
-        return [];
+      console.error("getTasks failed:", result.error);
+      return [];
     }
 
     // Handle both wrapped { tasks: [...] } and raw array responses
@@ -56,7 +58,9 @@ export async function getTimeUntilDailyReset(): Promise<{
   seconds: number;
 }> {
   try {
-    const result = await apiRequest<{ timeUntilReset: number }>("/waitlist/time");
+    const result = await apiRequest<{ timeUntilReset: number }>(
+      "/waitlist/time",
+    );
     if (!result.ok) throw result.error;
     const data = result.data;
     const ms = data.timeUntilReset;
@@ -92,20 +96,22 @@ export async function getTimeUntilDailyReset(): Promise<{
 // Complete a task
 export async function completeTask(
   taskId: string,
-): Promise<{ success: boolean; points?: number; newBalance?: number; error?: string }> {
+): Promise<{
+  success: boolean;
+  points?: number;
+  newBalance?: number;
+  error?: string;
+}> {
   try {
-    const result = await apiRequest<{ 
-      success?: boolean; 
-      pxpBalance: number; 
-      pointsEarned?: number; 
+    const result = await apiRequest<{
+      success?: boolean;
+      pxpBalance: number;
+      pointsEarned?: number;
       id?: string;
-    }>(
-      "/waitlist/tasks/complete",
-      {
-        method: "POST",
-        body: { taskId },
-      },
-    );
+    }>("/waitlist/tasks/complete", {
+      method: "POST",
+      body: { taskId },
+    });
 
     if (!result.ok) throw result.error;
 
@@ -114,28 +120,48 @@ export async function completeTask(
     // Use backend's pointsEarned if available, otherwise calculate from difference
     const currentUser = getCurrentUser();
     const oldPxp = currentUser?.points || 0;
-    const pointsEarned = data.pointsEarned ?? (newBalance - oldPxp);
+    const pointsEarned = data.pointsEarned ?? newBalance - oldPxp;
 
     // Update local storage with new balance
     const updatedUser = updateCurrentUser({
       points: newBalance,
     });
-    
+
     // Dispatch event so dashboard updates in real-time without refresh
-    if (typeof window !== 'undefined' && updatedUser) {
-      window.dispatchEvent(new CustomEvent('penxchain:user-updated', { detail: updatedUser }));
+    if (typeof window !== "undefined" && updatedUser) {
+      window.dispatchEvent(
+        new CustomEvent("penxchain:user-updated", { detail: updatedUser }),
+      );
     }
-    
-    return { 
-      success: true, 
+    // Refresh authoritative stats from server to keep rank/referral counts in sync
+    try {
+      const statsRes = await apiRequest<any>("/waitlist/stats");
+      if (statsRes.ok && statsRes.data) {
+        const s = statsRes.data;
+        const synced = updateCurrentUser({
+          points: s.pxpBalance ?? newBalance,
+          rank: s.rank ?? updatedUser?.rank,
+          referralCount: s._count?.referrals ?? updatedUser?.referralCount,
+        });
+        if (synced)
+          window.dispatchEvent(
+            new CustomEvent("penxchain:user-updated", { detail: synced }),
+          );
+      }
+    } catch (e) {
+      // best-effort
+      console.warn("Failed to refresh stats after task completion", e);
+    }
+
+    return {
+      success: true,
       points: pointsEarned > 0 ? pointsEarned : 1,
-      newBalance 
+      newBalance,
     };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
-
 
 export function getSocialTasks(tasks: (Task & { completed: boolean })[]) {
   return tasks.filter((t) => t.type.toLowerCase() === "social");
@@ -146,5 +172,8 @@ export function getDailyTasks(tasks: (Task & { completed: boolean })[]) {
 }
 
 export function getOneTimeTasks(tasks: (Task & { completed: boolean })[]) {
-  return tasks.filter((t) => t.type.toLowerCase() === "one_time" || (t as any).type === "ONE_TIME");
+  return tasks.filter(
+    (t) =>
+      t.type.toLowerCase() === "one_time" || (t as any).type === "ONE_TIME",
+  );
 }

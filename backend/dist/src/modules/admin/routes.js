@@ -59,8 +59,11 @@ async function adminRoutes(app) {
     server.post("/users/:id/ban", {
         schema: {
             params: zod_1.default.object({ id: zod_1.default.string() }),
+            body: zod_1.default.object({
+                reason: zod_1.default.string().min(5, "Ban reason must be at least 5 characters")
+            }),
             tags: ["Admin"],
-            summary: "Ban a user",
+            summary: "Ban a user (requires reason)",
             querystring: zod_1.default.object({}).passthrough(),
         },
     }, controller_1.banUserHandler);

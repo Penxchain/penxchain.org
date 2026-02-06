@@ -1,11 +1,12 @@
-import z from 'zod';
+import z from "zod";
 
 export const signupSchema = z.object({
-  walletAddress: z.string().min(10, 'Invalid wallet address').optional(),
+  walletAddress: z.string().min(10, "Invalid wallet address").optional(),
   username: z.string().min(3).optional(),
   email: z.string().email(),
   password: z.string().min(6),
   referralCode: z.string().optional(),
+  deviceId: z.string().optional(),
   recaptchaToken: z.string().optional(), // Token from Google ReCaptcha
 });
 
