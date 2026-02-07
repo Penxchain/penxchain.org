@@ -59,13 +59,62 @@ export async function getTasksWithUserStatus(userId: string) {
     },
   });
 
-  return tasks.map((task) => ({
-    ...task,
-    status: task.userTasks[0]?.status || "PENDING",
-    completedAt: task.userTasks[0]?.completedAt || null,
-    // Remove userTasks array from response
-    userTasks: undefined,
-  }));
+  // Calculate today's UTC date boundary for DAILY task comparison
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  return tasks.map((task) => {
+    const userTask = task.userTasks[0];
+    
+    // No completion record exists - task is pending
+    if (!userTask) {
+      return {
+        ...task,
+        status: "PENDING",
+        completedAt: null,
+        userTasks: undefined,
+      };
+    }
+
+    // For DAILY tasks: derive completion state from completedAt date
+    // Task is only "COMPLETED" if completed TODAY (UTC), otherwise it resets to "PENDING"
+    if (task.type === "DAILY") {
+      const completedAt = userTask.completedAt ? new Date(userTask.completedAt) : null;
+      
+      if (completedAt) {
+        const completedDateUTC = new Date(Date.UTC(
+          completedAt.getUTCFullYear(),
+          completedAt.getUTCMonth(),
+          completedAt.getUTCDate()
+        ));
+        
+        const isCompletedToday = completedDateUTC.getTime() === todayUTC.getTime();
+        
+        return {
+          ...task,
+          status: isCompletedToday ? "COMPLETED" : "PENDING",
+          completedAt: userTask.completedAt,
+          userTasks: undefined,
+        };
+      }
+      
+      // Has record but no completedAt (defensive handling)
+      return {
+        ...task,
+        status: "PENDING",
+        completedAt: null,
+        userTasks: undefined,
+      };
+    }
+
+    // For ONE_TIME and SOCIAL tasks: completed permanently once done
+    return {
+      ...task,
+      status: userTask.status || "PENDING",
+      completedAt: userTask.completedAt || null,
+      userTasks: undefined,
+    };
+  });
 }
 
 export async function completeTask(userId: string, taskId: string) {
