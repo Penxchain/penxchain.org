@@ -756,6 +756,16 @@ function UserTable({ users, loading, currentUserId, currentUserRole, onBan, onUn
                           >
                            {user.role === 'USER' ? <ArrowUpRight size={14} /> : <ArrowUpRight size={14} className="rotate-180" />}
                           </button>
+                          
+                          {user.role === 'ADMIN' && (
+                            <button
+                              onClick={() => onPromoteSuper(user.id)}
+                              className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-amber-500 transition-colors"
+                              title="Promote to Superadmin"
+                            >
+                              <Crown size={14} className="group-hover:text-amber-500 transition-colors" />
+                            </button>
+                          )}
                        </>
                     )}
 
