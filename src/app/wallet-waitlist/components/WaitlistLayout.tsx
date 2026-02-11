@@ -127,7 +127,7 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
           <div className="pt-4 border-t border-zinc-800/60">
             <button
               onClick={handleLogout}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 text-zinc-500 hover:bg-zinc-900/60 rounded-lg transition-colors text-sm mono"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 text-zinc-500 hover:bg-red-900/60 rounded-lg transition-colors text-sm mono"
             >
               <LogOut className="w-4 h-4" />
               Logout

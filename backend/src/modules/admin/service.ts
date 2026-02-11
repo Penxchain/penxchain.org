@@ -15,9 +15,25 @@ export async function getSystemStats() {
       select: { username: true, _count: { select: { referrals: true } } },
     });
 
+    // Calculate weekly growth
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const usersLastWeek = await db.user.count({
+      where: { createdAt: { lt: sevenDaysAgo } }
+    });
+    
+    let growthPercent = 0;
+    if (usersLastWeek > 0) {
+      growthPercent = ((totalUsers - usersLastWeek) / usersLastWeek) * 100;
+    } else if (totalUsers > 0) {
+      growthPercent = 100; // First week of users
+    }
+
     return {
       totalUsers,
       totalPoints: totalPoints._sum.pxpBalance || 0,
+      growthPercent: Math.round(growthPercent), // Add this new field
       topReferrers: topReferrers.map((u: any) => ({
         username: u.username,
         count: u._count.referrals,
@@ -29,13 +45,28 @@ export async function getSystemStats() {
   }
 }
 
-export async function getAllUsers(page: number = 1, limit: number = 20) {
+export async function getAllUsers(page: number = 1, limit: number = 20, search?: string) {
   try {
     const skip = (page - 1) * limit;
+    
+    const whereClause: any = {};
+    if (search && search.trim().length > 0) {
+      const term = search.trim();
+      whereClause.OR = [
+        { email: { contains: term, mode: "insensitive" } },
+        { username: { contains: term, mode: "insensitive" } },
+        { id: { contains: term, mode: "insensitive" } }, // Also search by ID for exact lookups
+      ];
+    }
+
     const users = await db.user.findMany({
+      where: whereClause,
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { role: "asc" }, // superadmin/admin come first (alphabetically ADMIN < SUPERADMIN < USER)
+        { createdAt: "desc" }
+      ],
       select: {
         id: true,
         email: true,
@@ -50,7 +81,8 @@ export async function getAllUsers(page: number = 1, limit: number = 20) {
         dailyStreak: true,
       },
     });
-    const total = await db.user.count();
+    
+    const total = await db.user.count({ where: whereClause });
 
     return { users, total, pages: Math.ceil(total / limit) };
   } catch (err: any) {
@@ -292,7 +324,7 @@ export async function cleanupExpiredTasks() {
       });
     });
 
-    console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks:`, expiredTasks.map((t: any) => t.title));
+    console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks`);
     return { deleted: expiredTasks.length, tasks: expiredTasks };
   } catch (err: any) {
     console.error("[ADMIN] Error cleaning up expired tasks:", err?.message);

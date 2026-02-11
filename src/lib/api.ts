@@ -30,7 +30,7 @@ export async function apiRequest<T>(
     // Check if body is standard object (not FormData/Blob)
     const isObjectBody = body && typeof body === "object" && !(body instanceof FormData) && !(body instanceof Blob);
     
-    // 1. Prepare Headers safely
+    // Prepare Headers safely
     const headers = new Headers(options.headers || {});
     
     // Only set JSON header if we are actually sending a JSON object

@@ -32,12 +32,6 @@ async function checkReferralHandler(request, reply) {
 }
 async function loginHandler(request, reply) {
     try {
-        if (request.body.recaptchaToken) {
-            const { success, score, error } = await (0, recaptcha_1.verifyRecaptcha)(request.body.recaptchaToken, 'login');
-            if (!success || score < recaptcha_1.RECAPTCHA_MIN_SCORE) {
-                throw new errors_1.BadRequestError(error || "Security verification failed. Please try again.");
-            }
-        }
         const user = await (0, service_1.loginUser)(request.body);
         const token = request.server.jwt.sign({ id: user.id, role: user.role });
         const { password, ...safeUser } = user;

@@ -16,6 +16,14 @@ import {
   Fingerprint,
   Copy,
   Check,
+  Zap,
+  ShieldCheck,
+  Database,
+  Cpu,
+  Globe,
+  Crown,
+  Flame,
+  Megaphone,
 } from "lucide-react";
 import WaitlistLayout from "../components/WaitlistLayout";
 import { getCurrentUser } from "../lib/waitlist-auth";
@@ -410,23 +418,82 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               {
-                title: "Early Adopter",
-                desc: "Joined genesis waitlist",
-                icon: Award,
-                achieved: true,
-              },
-              {
-                title: "Task Master",
-                desc: "Completed 5+ protocols",
-                icon: CheckCircle2,
-                achieved: completedTasks.length >= 5,
-              },
-              {
-                title: "Influencer",
-                desc: "Referred 3+ users",
-                icon: Users,
-                achieved: safeReferralCount >= 3,
-              },
+    title: "Genesis Node", // Replaces "Early Adopter"
+    desc: "Secured a spot on the Penxchain genesis waitlist.",
+    icon: Award,
+    achieved: true, // Hardcoded for early users
+    tier: 'special'
+  },
+
+  // --- SECTION 2: PROOF OF WORK (Task Progression) ---
+  // The goal: Encourage interaction with protocols
+  {
+    title: "Protocol Initiate",
+    desc: "Executed your first 5 protocols successfully.",
+    icon: Zap,
+    achieved: completedTasks.length >= 5,
+    tier: 'bronze'
+  },
+  {
+    title: "Chain Validator", 
+    desc: "Ramped up activity. Completed 25 protocols.",
+    icon: ShieldCheck,
+    achieved: completedTasks.length >= 25,
+    tier: 'silver'
+  },
+  {
+    title: "Block Forger",
+    desc: "High-volume execution. Completed 50 protocols.",
+    icon: Database,
+    achieved: completedTasks.length >= 50,
+    tier: 'gold'
+  },
+  {
+    title: "Grandmaster Operator", // The new Level 100 Goal
+    desc: "Elite status. Completed 100+ protocols on Penxchain.",
+    icon: Cpu,
+    achieved: completedTasks.length >= 100,
+    tier: 'platinum'
+  },
+
+  // --- SECTION 3: NETWORK CONSENSUS (Referral Progression) ---
+  // The goal: Viral growth
+  {
+    title: "Signal Beacon", // Replaces "Influencer"
+    desc: "Onboarded 3 new nodes to the network.",
+    icon: Globe,
+    achieved: safeReferralCount >= 3,
+    tier: 'bronze'
+  },
+  {
+    title: "Network Weaver",
+    desc: "Expanded influence. Referred 10 users.",
+    icon: CheckCircle2,
+    achieved: safeReferralCount >= 10,
+    tier: 'silver'
+  },
+  {
+    title: "Consensus Leader",
+    desc: "Established a major sub-network. Referred 50 users.",
+    icon: Crown,
+    achieved: safeReferralCount >= 50,
+    tier: 'gold'
+  },
+  {
+    title: "Penxchain Vanguard", // The new Level 100 Goal
+    desc: "Legendary reach. Successfully referred 100+ users.",
+    icon: Flame, // Or a Rocket icon
+    achieved: safeReferralCount >= 100,
+    tier: 'platinum'
+  },
+  {
+  title: "Penxchain Influencer",
+  desc: "Unmatched network reach. Successfully referred 1,000+ users to Penxchain.",
+  icon: Megaphone, // or Crown, Rocket, Flame
+  achieved: safeReferralCount >= 1000,
+  tier: 'legendary'
+}
+
             ].map((badge, idx) => (
               <div
                 key={idx}

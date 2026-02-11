@@ -23,10 +23,11 @@ async function getStatsHandler(request, reply) {
 const querySchema = zod_1.default.object({
     page: zod_1.default.coerce.number().default(1),
     limit: zod_1.default.coerce.number().default(20),
+    search: zod_1.default.string().optional(),
 });
 async function getUsersHandler(request, reply) {
-    const { page, limit } = request.query;
-    const data = await (0, service_1.getAllUsers)(page, limit);
+    const { page, limit, search } = request.query;
+    const data = await (0, service_1.getAllUsers)(page, limit, search);
     return reply.send(data);
 }
 async function banUserHandler(request, reply) {

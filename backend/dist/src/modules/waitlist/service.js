@@ -48,12 +48,44 @@ async function getTasksWithUserStatus(userId) {
             },
         },
     });
-    return tasks.map((task) => ({
-        ...task,
-        status: task.userTasks[0]?.status || "PENDING",
-        completedAt: task.userTasks[0]?.completedAt || null,
-        userTasks: undefined,
-    }));
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    return tasks.map((task) => {
+        const userTask = task.userTasks[0];
+        if (!userTask) {
+            return {
+                ...task,
+                status: "PENDING",
+                completedAt: null,
+                userTasks: undefined,
+            };
+        }
+        if (task.type === "DAILY") {
+            const completedAt = userTask.completedAt ? new Date(userTask.completedAt) : null;
+            if (completedAt) {
+                const completedDateUTC = new Date(Date.UTC(completedAt.getUTCFullYear(), completedAt.getUTCMonth(), completedAt.getUTCDate()));
+                const isCompletedToday = completedDateUTC.getTime() === todayUTC.getTime();
+                return {
+                    ...task,
+                    status: isCompletedToday ? "COMPLETED" : "PENDING",
+                    completedAt: userTask.completedAt,
+                    userTasks: undefined,
+                };
+            }
+            return {
+                ...task,
+                status: "PENDING",
+                completedAt: null,
+                userTasks: undefined,
+            };
+        }
+        return {
+            ...task,
+            status: userTask.status || "PENDING",
+            completedAt: userTask.completedAt || null,
+            userTasks: undefined,
+        };
+    });
 }
 async function completeTask(userId, taskId) {
     return db_1.db.$transaction(async (tx) => {

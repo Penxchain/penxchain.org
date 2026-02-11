@@ -10,6 +10,7 @@ const db_1 = require("../../shared/database/db");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const env_1 = require("../../config/env");
 const errors_1 = require("../../shared/errors");
+const recaptcha_1 = require("../../shared/recaptcha");
 const client_1 = require("@prisma/client");
 async function generateReferralCode() {
     const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -35,6 +36,15 @@ async function createUser(input) {
         const emailUser = await db_1.db.user.findUnique({ where: { email } });
         if (emailUser)
             throw new errors_1.ConflictError("Email already registered");
+        if (input.deviceId) {
+            const existingDeviceUser = await db_1.db.user.findFirst({
+                where: { deviceId: input.deviceId },
+                select: { id: true },
+            });
+            if (existingDeviceUser) {
+                throw new errors_1.ConflictError("You can no longer create another account on this device. Try logging in on your previous account.");
+            }
+        }
         if (input.username) {
             try {
                 const usernameUser = await db_1.db.user.findUnique({
@@ -171,11 +181,19 @@ async function createUser(input) {
 }
 async function loginUser(input) {
     let user = null;
-    if (input.email && input.password) {
-        const email = input.email.toLowerCase();
-        console.debug(`[AUTH] email login attempt for ${email}`);
-        user = await db_1.db.user.findFirst({
-            where: { email },
+    const identifier = input.identifier || input.email;
+    const password = input.password;
+    if (identifier && password) {
+        const isEmail = identifier.includes("@");
+        const normalizedIdentifier = isEmail ? identifier.toLowerCase() : identifier;
+        console.debug(`[AUTH] login attempt for ${normalizedIdentifier} (isEmail=${isEmail})`);
+        const recaptchaPromise = input.recaptchaToken
+            ? (0, recaptcha_1.verifyRecaptcha)(input.recaptchaToken, 'login')
+            : Promise.resolve({ success: true, score: 1, error: undefined });
+        const userPromise = db_1.db.user.findFirst({
+            where: isEmail
+                ? { email: normalizedIdentifier }
+                : { username: normalizedIdentifier },
             select: {
                 id: true,
                 email: true,
@@ -185,29 +203,33 @@ async function loginUser(input) {
                 role: true,
                 pxpBalance: true,
                 referralCode: true,
+                createdAt: true,
+                lastBonusClaim: true,
                 dailyStreak: true,
                 lastActivityDate: true,
                 isBanned: true,
                 banReason: true,
                 bannedAt: true,
-                createdAt: true,
-                lastBonusClaim: true,
-                tasks: {
-                    select: { taskId: true },
-                    where: { status: "COMPLETED" },
-                },
             },
         });
+        const [recaptchaResult, user] = await Promise.all([recaptchaPromise, userPromise]);
+        if (!recaptchaResult.success || (recaptchaResult.score !== undefined && recaptchaResult.score < recaptcha_1.RECAPTCHA_MIN_SCORE)) {
+            throw new errors_1.BadRequestError(recaptchaResult.error || "Security verification failed. Please try again.");
+        }
         if (!user) {
-            console.debug(`[AUTH] no user found for email=${email}`);
-            throw new Error("Invalid credentials");
+            console.debug(`[AUTH] no user found for identifier=${normalizedIdentifier}`);
+            throw new errors_1.InvalidCredentialsError(isEmail
+                ? "No account found with this email"
+                : "No account found with this username");
+        }
+        if (user.isBanned) {
+            throw new errors_1.InvalidCredentialsError(`Account suspended: ${user.banReason || "Violation of terms"}`);
         }
         if (user.password) {
-            const peppered = getPepperedPassword(input.password);
-            console.debug(`[AUTH] login attempt email=${email} id=${user.id} hasPassword=${!!user.password}`);
+            const peppered = getPepperedPassword(password);
             let valid = await bcrypt_1.default.compare(peppered, user.password);
             if (!valid) {
-                const legacyValid = await bcrypt_1.default.compare(input.password, user.password);
+                const legacyValid = await bcrypt_1.default.compare(password, user.password);
                 if (legacyValid) {
                     const newPepperedHash = await bcrypt_1.default.hash(peppered, 12);
                     await db_1.db.user.update({
@@ -220,21 +242,17 @@ async function loginUser(input) {
                 }
             }
             if (!valid) {
-                console.debug(`[AUTH] password mismatch for email=${email} id=${user.id}`);
-                throw new Error("Invalid credentials");
+                console.debug(`[AUTH] password mismatch for identifier=${normalizedIdentifier} id=${user.id}`);
+                throw new errors_1.InvalidCredentialsError("Incorrect password. Please try again.");
             }
         }
         else {
-            console.debug(`[AUTH] no password set for email=${email}`);
-            throw new Error("Invalid credentials");
-        }
-        if (user.isBanned) {
-            const reason = user.banReason || "Account suspended";
-            throw new errors_1.ForbiddenError(`Account Banned: ${reason}. Contact support@penxchain.org if you believe this is an error.`);
+            console.debug(`[AUTH] no password set for identifier=${normalizedIdentifier}`);
+            throw new errors_1.InvalidCredentialsError("This account requires a different login method (e.g. Wallet/Social)");
         }
         return user;
     }
-    throw new Error("Invalid login parameters");
+    throw new errors_1.BadRequestError("Invalid login parameters. Email/Username and password required.");
 }
 async function checkReferralCode(code) {
     const user = await db_1.db.user.findFirst({

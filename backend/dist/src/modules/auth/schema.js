@@ -15,6 +15,7 @@ exports.signupSchema = zod_1.default.object({
     recaptchaToken: zod_1.default.string().optional(),
 });
 exports.loginSchema = zod_1.default.object({
+    identifier: zod_1.default.string().min(3).optional(),
     email: zod_1.default.string().email().optional(),
     password: zod_1.default.string().optional(),
     walletAddress: zod_1.default.string().min(10).optional(),

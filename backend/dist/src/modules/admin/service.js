@@ -26,9 +26,22 @@ async function getSystemStats() {
             orderBy: { referrals: { _count: "desc" } },
             select: { username: true, _count: { select: { referrals: true } } },
         });
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const usersLastWeek = await db_1.db.user.count({
+            where: { createdAt: { lt: sevenDaysAgo } }
+        });
+        let growthPercent = 0;
+        if (usersLastWeek > 0) {
+            growthPercent = ((totalUsers - usersLastWeek) / usersLastWeek) * 100;
+        }
+        else if (totalUsers > 0) {
+            growthPercent = 100;
+        }
         return {
             totalUsers,
             totalPoints: totalPoints._sum.pxpBalance || 0,
+            growthPercent: Math.round(growthPercent),
             topReferrers: topReferrers.map((u) => ({
                 username: u.username,
                 count: u._count.referrals,
@@ -40,13 +53,26 @@ async function getSystemStats() {
         throw new errors_1.InternalServerError();
     }
 }
-async function getAllUsers(page = 1, limit = 20) {
+async function getAllUsers(page = 1, limit = 20, search) {
     try {
         const skip = (page - 1) * limit;
+        const whereClause = {};
+        if (search && search.trim().length > 0) {
+            const term = search.trim();
+            whereClause.OR = [
+                { email: { contains: term, mode: "insensitive" } },
+                { username: { contains: term, mode: "insensitive" } },
+                { id: { contains: term, mode: "insensitive" } },
+            ];
+        }
         const users = await db_1.db.user.findMany({
+            where: whereClause,
             skip,
             take: limit,
-            orderBy: { createdAt: "desc" },
+            orderBy: [
+                { role: "asc" },
+                { createdAt: "desc" }
+            ],
             select: {
                 id: true,
                 email: true,
@@ -61,7 +87,7 @@ async function getAllUsers(page = 1, limit = 20) {
                 dailyStreak: true,
             },
         });
-        const total = await db_1.db.user.count();
+        const total = await db_1.db.user.count({ where: whereClause });
         return { users, total, pages: Math.ceil(total / limit) };
     }
     catch (err) {
@@ -249,7 +275,7 @@ async function cleanupExpiredTasks() {
                 where: { id: { in: expiredIds } },
             });
         });
-        console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks:`, expiredTasks.map((t) => t.title));
+        console.log(`[ADMIN] Cleaned up ${expiredTasks.length} expired tasks`);
         return { deleted: expiredTasks.length, tasks: expiredTasks };
     }
     catch (err) {

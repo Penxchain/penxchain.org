@@ -52,20 +52,52 @@ export async function fetchLeaderboard(): Promise<User[]> {
 // Level thresholds - PENXCHAIN Privacy & Zero-Knowledge Themed
 export const levelThresholds = [
   { level: 1, minPoints: 0, maxPoints: 500, title: "Initiate" },
+  
   { level: 2, minPoints: 501, maxPoints: 1500, title: "Cipher" },
+
   { level: 3, minPoints: 1501, maxPoints: 3000, title: "Validator" },
+
   { level: 4, minPoints: 3001, maxPoints: 5500, title: "Encryptor" },
+
   { level: 5, minPoints: 5501, maxPoints: 9000, title: "Sentinel" },
+
   { level: 6, minPoints: 9001, maxPoints: 14000, title: "Guardian" },
+
   { level: 7, minPoints: 14001, maxPoints: 20000, title: "Architect" },
+
   { level: 8, minPoints: 20001, maxPoints: 30000, title: "Overseer" },
+
   { level: 9, minPoints: 30001, maxPoints: 45000, title: "Sovereign" },
+
   { level: 10, minPoints: 45001, maxPoints: 65000, title: "Oracle" },
+
   { level: 11, minPoints: 65001, maxPoints: 90000, title: "Cryptkeeper" },
+
   { level: 12, minPoints: 90001, maxPoints: 120000, title: "Shadow" },
+
   { level: 13, minPoints: 120001, maxPoints: 155000, title: "Phantom" },
+
   { level: 14, minPoints: 155001, maxPoints: 200000, title: "Ghost" },
-  { level: 15, minPoints: 200001, maxPoints: Infinity, title: "Apex" },
+
+  { level: 15, minPoints: 200001, maxPoints: 350000, title: "Apex" },
+
+  { level: 16, minPoints: 350001, maxPoints: 600000, title: "Overlord" },
+
+  { level: 17, minPoints: 600001, maxPoints: 1_000_000, title: "Chainmaster" },
+
+  { level: 18, minPoints: 1_000_001, maxPoints: 1_800_000, title: "Oracle Prime" },
+
+  { level: 19, minPoints: 1_800_001, maxPoints: 3_000_000, title: "Crypt Sovereign" },
+
+  { level: 20, minPoints: 3_000_001, maxPoints: 4_500_000, title: "Void Walker" },
+
+  { level: 21, minPoints: 4_500_001, maxPoints: 6_500_000, title: "Shadow Governor" },
+
+  { level: 22, minPoints: 6_500_001, maxPoints: 8_500_000, title: "Chainlord" },
+
+  { level: 23, minPoints: 8_500_001, maxPoints: 9_999_999, title: "Eternal Nexus" },
+
+  { level: 24, minPoints: 10_000_000, maxPoints: Infinity, title: "PENX Prime" },
 ];
 
 export function calculateLevel(points: number): number {

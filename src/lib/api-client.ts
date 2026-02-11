@@ -4,7 +4,7 @@ import axios, {
   AxiosResponse,
 } from "axios";
 
-/* ---------------- TYPES ---------------- */
+/* TYPES */
 
 export type ApiSuccess<T> = {
   ok: true;
@@ -20,12 +20,8 @@ export type ApiFailure = {
 
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure;
 
-/* ---------------- USER-FRIENDLY ERROR MESSAGES ---------------- */
+/* USER-FRIENDLY ERROR MESSAGES */
 
-/**
- * Map technical errors to calm, human-readable messages
- * Users don't care about technical details - they just want to know what to do
- */
 const USER_FRIENDLY_MESSAGES: Record<string, string> = {
   // Network issues
   "Network Error":
@@ -48,6 +44,8 @@ const USER_FRIENDLY_MESSAGES: Record<string, string> = {
     "This username is already taken. Please choose another one.",
   "Wallet already linked": "This wallet is already linked to another account.",
   "User already exists": "User already exists. Please try logging in.",
+  "You can no longer create another account on this device":
+    "You already have an account on this device. Please log in instead.",
 
   // Generic server errors
   "Internal Server Error":
@@ -76,10 +74,27 @@ function getUserFriendlyMessage(message: string, status?: number): string {
   }
 
   // Status-based fallbacks
-  if (status === 401) return "Please log in to continue.";
+  if (status === 401) {
+    // Allow specific auth errors to pass through
+    const lowerMsg = message.toLowerCase();
+    if (
+      lowerMsg.includes("incorrect password") ||
+      lowerMsg.includes("no account found") ||
+      lowerMsg.includes("account suspended") ||
+      lowerMsg.includes("invalid login parameters") ||
+      lowerMsg.includes("email/username and password required")
+    ) {
+      return message;
+    }
+    return "Please log in to continue.";
+  }
   if (status === 403) {
     if (message.toLowerCase().includes("account banned")) return message;
     return "⚠️🚨You don't have permission to do this.🚨⚠️";
+  }
+  if (status === 409) {
+    if (message.includes("device")) return message;
+    return "This resource already exists.";
   }
   if (status === 404) return "The requested resource was not found.";
   if (status === 429)
@@ -91,7 +106,7 @@ function getUserFriendlyMessage(message: string, status?: number): string {
   return "Something went wrong. Please try again.";
 }
 
-/* ---------------- AXIOS INSTANCE ---------------- */
+/* AXIOS INSTANCE */
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3002",
@@ -101,7 +116,7 @@ const api = axios.create({
   timeout: 30_000,
 });
 
-/* ---------------- REQUEST INTERCEPTOR ---------------- */
+/* REQUEST INTERCEPTOR */
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -123,7 +138,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-/* ---------------- RESPONSE INTERCEPTOR ---------------- */
+/* RESPONSE INTERCEPTOR */
 
 api.interceptors.response.use(
   (response: AxiosResponse) => response.data,
@@ -132,7 +147,7 @@ api.interceptors.response.use(
   },
 );
 
-/* ---------------- API REQUEST WRAPPER ---------------- */
+/* API REQUEST WRAPPER */
 
 export async function apiRequest<T>(
   url: string,

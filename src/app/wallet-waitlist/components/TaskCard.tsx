@@ -72,6 +72,8 @@ export default function TaskCard({
     eye: LucideIcons.Eye,
     document: LucideIcons.FileText,
     retweet: ReactIcons.FaRetweet,
+    follow: LucideIcons.UserPlus,
+    question: LucideIcons.BadgeQuestionMark,
   };
 
   // Resolve icon: admin ID → component, or fallback chain

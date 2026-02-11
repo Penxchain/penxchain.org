@@ -46,13 +46,7 @@ export async function loginHandler(
   reply: FastifyReply,
 ) {
   try {
-    // 1. Verify ReCaptcha if token provided
-    if (request.body.recaptchaToken) {
-      const { success, score, error } = await verifyRecaptcha(request.body.recaptchaToken, 'login');
-      if (!success || score < RECAPTCHA_MIN_SCORE) {
-        throw new BadRequestError(error || "Security verification failed. Please try again.");
-      }
-    }
+
 
     const user = await loginUser(request.body);
     const token = request.server.jwt.sign({ id: user.id, role: user.role });

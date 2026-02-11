@@ -15,7 +15,7 @@ import ReCaptchaWrapper from '../components/ReCaptchaWrapper';
 function LoginContent() {
   const router = useRouter();
   const { executeRecaptcha } = useGoogleReCaptcha();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +36,7 @@ function LoginContent() {
       }
     }
 
-    const result = await login(email, password, recaptchaToken);
+    const result = await login(identifier, password, recaptchaToken);
 
     if (result.success) {
       router.push('/wallet-waitlist/dashboard');
@@ -105,19 +105,20 @@ function LoginContent() {
             <form onSubmit={handleSubmit} className="space-y-6 relative z-10 text-left">
               
               {/* Email Field */}
+              {/* Identifier Field (Email or Username) */}
               <div className="space-y-2">
-                <label htmlFor="email" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID / Email</label>
+                <label htmlFor="identifier" className="text-[10px] font-mono uppercase text-gray-500 tracking-widest ml-1">Identity ID / Email / Username</label>
                 <div className="relative group/input">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within/input:text-[#2547D0] transition-colors" />
                   <input
-                    id="email"
-                    name="email"
-                    autoComplete="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="identifier"
+                    name="identifier"
+                    autoComplete="username"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     required
-                    placeholder="ENTER_ID"
+                    placeholder="ProUser123 or email@example.com"
                     className="w-full pl-12 pr-4 py-4 bg-white/[0.03] border border-white/5 rounded-xl text-sm transition-all focus:outline-none focus:border-[#2547D0]/50 placeholder:text-gray-700 font-mono"
                   />
                 </div>

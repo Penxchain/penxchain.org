@@ -15,12 +15,12 @@ export const handleSmartDownload = (router: Router): void => {
 
   const userAgent = navigator.userAgent || navigator.vendor;
   if (/android/i.test(userAgent)) {
-    window.open(APP_LINKS.ANDROID, "_blank");
+    window.open(APP_LINKS.DOWNLOAD_PAGE, "_blank");
     return;
   }
 
   if (/iPad|iPhone|iPod/i.test(userAgent) && !("MSStream" in window)) {
-    window.open(APP_LINKS.IOS, "_blank");
+    window.open(APP_LINKS.DOWNLOAD_PAGE, "_blank");
     return;
   }
 

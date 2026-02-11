@@ -41,6 +41,7 @@ export async function adminRoutes(app: FastifyInstance) {
         querystring: z.object({
           page: z.coerce.number().default(1),
           limit: z.coerce.number().default(20),
+          search: z.string().optional(),
         }),
         tags: ["Admin"],
         summary: "List users",

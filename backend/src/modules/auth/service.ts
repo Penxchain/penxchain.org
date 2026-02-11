@@ -6,7 +6,9 @@ import {
   ConflictError,
   BadRequestError,
   InternalServerError,
+  InvalidCredentialsError,
 } from "../../shared/errors";
+import { verifyRecaptcha, RECAPTCHA_MIN_SCORE } from "../../shared/recaptcha";
 import { Prisma } from "@prisma/client";
 
 // Generate referral code in format PNX-XXXXXX (no confusing chars)
@@ -41,6 +43,20 @@ export async function createUser(input: SignupInput) {
   try {
     const emailUser = await db.user.findUnique({ where: { email } });
     if (emailUser) throw new ConflictError("Email already registered");
+
+    // Strict Device ID Check
+    if (input.deviceId) {
+      const existingDeviceUser = await db.user.findFirst({
+        where: { deviceId: input.deviceId },
+        select: { id: true },
+      });
+
+      if (existingDeviceUser) {
+        throw new ConflictError(
+          "You can no longer create another account on this device. Try logging in on your previous account."
+        );
+      }
+    }
 
     if (input.username) {
       try {
@@ -193,18 +209,34 @@ export async function createUser(input: SignupInput) {
   }
 }
 
+
+
+// ... existing imports ...
+
 export async function loginUser(input: LoginInput) {
   let user: any = null;
 
-  // Prefer email + password login. Wallet login must be explicit (e.g. with signature).
-  if (input.email && input.password) {
-    const email = input.email.toLowerCase();
-    console.debug(`[AUTH] email login attempt for ${email}`);
+  // Support both `identifier` (new) and `email` (legacy) fields
+  // Prefer email/password login. Wallet login must be explicit.
+  const identifier = input.identifier || input.email;
+  const password = input.password;
 
-    // Lookup by normalized email. If your DB stores mixed-case emails, run a migration
-    // to normalize to lowercase so this lookup is reliable.
-    user = await db.user.findFirst({
-      where: { email },
+  if (identifier && password) {
+    const isEmail = identifier.includes("@");
+    const normalizedIdentifier = isEmail ? identifier.toLowerCase() : identifier;
+    
+    console.debug(`[AUTH] login attempt for ${normalizedIdentifier} (isEmail=${isEmail})`);
+
+    // PARALLEL EXECUTION: Verify ReCaptcha and lookup user simultaneously
+    const recaptchaPromise = input.recaptchaToken
+      ? verifyRecaptcha(input.recaptchaToken, 'login')
+      : Promise.resolve({ success: true, score: 1, error: undefined });
+
+    // Lookup by normalized email or username
+    const userPromise = db.user.findFirst({
+      where: isEmail 
+        ? { email: normalizedIdentifier }
+        : { username: normalizedIdentifier },
       select: {
         id: true,
         email: true,
@@ -216,26 +248,45 @@ export async function loginUser(input: LoginInput) {
         referralCode: true,
         createdAt: true,
         lastBonusClaim: true,
-        // Do NOT return referredBy on login responses (only used at signup)
+        dailyStreak: true,
+        lastActivityDate: true,
+        isBanned: true,
+        banReason: true,
+        bannedAt: true,
       },
     });
 
+    const [recaptchaResult, user] = await Promise.all([recaptchaPromise, userPromise]);
+
+    // 1. Check ReCaptcha Result
+    if (!recaptchaResult.success || (recaptchaResult.score !== undefined && recaptchaResult.score < RECAPTCHA_MIN_SCORE)) {
+      throw new BadRequestError(recaptchaResult.error || "Security verification failed. Please try again.");
+    }
+
+    // 2. Check User Existence
     if (!user) {
-      console.debug(`[AUTH] no user found for email=${email}`);
-      throw new Error("Invalid credentials");
+      console.debug(`[AUTH] no user found for identifier=${normalizedIdentifier}`);
+      throw new InvalidCredentialsError(
+        isEmail 
+          ? "No account found with this email" 
+          : "No account found with this username"
+      );
+    }
+    
+    // Check ban status immediately
+    if (user.isBanned) {
+      throw new InvalidCredentialsError(`Account suspended: ${user.banReason || "Violation of terms"}`);
     }
 
     // Check password with pepper
     if (user.password) {
-      const peppered = getPepperedPassword(input.password);
-      console.debug(
-        `[AUTH] login attempt email=${email} id=${user.id} hasPassword=${!!user.password}`,
-      );
+      const peppered = getPepperedPassword(password);
+      
       let valid = await bcrypt.compare(peppered, user.password);
 
       // If peppered check fails, check legacy un-peppered password and upgrade
       if (!valid) {
-        const legacyValid = await bcrypt.compare(input.password, user.password);
+        const legacyValid = await bcrypt.compare(password, user.password);
         if (legacyValid) {
           const newPepperedHash = await bcrypt.hash(peppered, 12);
           await db.user.update({
@@ -252,23 +303,21 @@ export async function loginUser(input: LoginInput) {
 
       if (!valid) {
         console.debug(
-          `[AUTH] password mismatch for email=${email} id=${user.id}`,
+          `[AUTH] password mismatch for identifier=${normalizedIdentifier} id=${user.id}`,
         );
-        throw new Error("Invalid credentials");
+        throw new InvalidCredentialsError("Incorrect password. Please try again.");
       }
     } else {
-      console.debug(`[AUTH] no password set for email=${email}`);
-      throw new Error("Invalid credentials");
+      console.debug(`[AUTH] no password set for identifier=${normalizedIdentifier}`);
+      throw new InvalidCredentialsError("This account requires a different login method (e.g. Wallet/Social)");
     }
 
     return user;
   }
 
   // Wallet-based login (explicit): requires signature verification flow which
-  // is intentionally separate from email/password login. If you need wallet
-  // login support, implement signature verification here and only then lookup
-  // by `walletAddress`. For now, reject ambiguous requests.
-  throw new Error("Invalid login parameters");
+  // is intentionally separate from email/password login.
+  throw new BadRequestError("Invalid login parameters. Email/Username and password required.");
 }
 
 export async function checkReferralCode(code: string) {

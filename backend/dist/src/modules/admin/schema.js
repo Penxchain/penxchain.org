@@ -3,8 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserPxpSchema = exports.updateTaskSchema = exports.createTaskSchema = void 0;
+exports.updateUserPxpSchema = exports.updateTaskSchema = exports.createTaskSchema = exports.querySchema = void 0;
 const zod_1 = __importDefault(require("zod"));
+exports.querySchema = zod_1.default.object({
+    page: zod_1.default.coerce.number().default(1),
+    limit: zod_1.default.coerce.number().default(20),
+    search: zod_1.default.string().optional(),
+});
 exports.createTaskSchema = zod_1.default.object({
     title: zod_1.default.string().min(3),
     description: zod_1.default.string().min(10),

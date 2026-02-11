@@ -49,6 +49,16 @@ export class UnauthorizedError extends AppError {
 }
 
 /**
+ * 401 Invalid Credentials - Wrong password or user not found
+ * Use distinct messages to help users understand the issue
+ */
+export class InvalidCredentialsError extends AppError {
+  constructor(message = "Invalid credentials") {
+    super(message, 401);
+  }
+}
+
+/**
  * 403 Forbidden - Authenticated but not allowed
  */
 export class ForbiddenError extends AppError {

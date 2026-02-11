@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
   Users,
@@ -27,6 +27,15 @@ import {
   FileText,
   Share2,
   Repeat2,
+  UserPlus,
+  BadgeQuestionMark,
+  Coins,
+  Target,
+  Crown,
+  Search as SearchIcon,
+  X,
+  Filter,
+  ArrowUpRight,
 } from "lucide-react";
 import { apiRequest } from "@/lib/api-client";
 import WaitlistLayout from "../wallet-waitlist/components/WaitlistLayout";
@@ -42,9 +51,11 @@ import {
   FaBookOpen,
 } from "react-icons/fa6";
 
+// --- Types ---
 interface Stats {
   totalUsers: number;
   totalPoints: number;
+  growthPercent?: number;
   topReferrers: { username: string; count: number }[];
 }
 
@@ -57,6 +68,7 @@ interface AdminUser {
   createdAt: string;
   walletAddress: string | null;
   isBanned: boolean;
+  dailyStreak: number;
 }
 
 interface Task {
@@ -71,21 +83,34 @@ interface Task {
   isActive: boolean;
 }
 
+// --- Main Component ---
 export default function AdminPage() {
   const router = useRouter();
+  
+  // Data State
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
+  
+  // UI State
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [error, setError] = useState("");
+  
+  // Auth State
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-
+  
+  // Modal State
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
+  // --- Effects ---
+
+  // Check Session
   useEffect(() => {
     const session = localStorage.getItem("penxchain_waitlist_user");
     if (session) {
@@ -97,44 +122,61 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Debounce Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to page 1 on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch Data
+  useEffect(() => {
+    fetchData();
+  }, [page, debouncedSearch]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
+      const queryParams = new URLSearchParams({
+        limit: "20",
+        page: page.toString(),
+      });
+      if (debouncedSearch) {
+        queryParams.append("search", debouncedSearch);
+      }
+
       const [statsResult, usersResult, tasksResult] = await Promise.all([
         apiRequest<Stats>("/admin/stats"),
         apiRequest<{ users: AdminUser[]; total: number }>(
-          "/admin/users?limit=20&page=" + page,
+          `/admin/users?${queryParams.toString()}`
         ),
         apiRequest<{ tasks: Task[] }>("/admin/waitlist/tasks"),
       ]);
 
-      if (!statsResult.ok) {
-        throw statsResult.error;
-      }
+      if (!statsResult.ok) throw statsResult.error;
       setStats(statsResult.data);
 
-      if (!usersResult.ok) {
-        throw usersResult.error;
-      }
+      if (!usersResult.ok) throw usersResult.error;
       setUsers(usersResult.data.users);
       setTotalUsers(usersResult.data.total);
 
-      if (!tasksResult.ok) {
-        throw tasksResult.error;
-      }
+      if (!tasksResult.ok) throw tasksResult.error;
       setTasks(tasksResult.data.tasks);
     } catch (err: any) {
       console.error("[ADMIN_FETCH_ERROR]", err);
       setError(err.message || "Access Denied");
-      router.push("/wallet-waitlist/dashboard"); // Redirect if unauthorized
+      // Only redirect if it's a 403/401, otherwise show error
+      if (err.message && (err.message.includes("Access") || err.message.includes("Denied"))) {
+         router.push("/wallet-waitlist/dashboard");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [page]);
+  // --- Handlers ---
 
   const handleBan = async (id: string) => {
     const reason = prompt("Enter ban reason (min 5 characters):");
@@ -142,32 +184,32 @@ export default function AdminPage() {
       alert("Ban reason must be at least 5 characters.");
       return;
     }
-    if (!confirm(`Are you sure you want to ban this user?\n\nReason: ${reason}`)) return;
+    if (!confirm(`Ban user?\n\nReason: ${reason}`)) return;
     try {
       const result = await apiRequest(`/admin/users/${id}/ban`, { 
         method: "POST",
         body: { reason: reason.trim() }
       });
       if (!result.ok) throw result.error;
-      fetchData(); // Refresh
+      fetchData();
     } catch (err: any) {
       alert(err.message || "Failed to ban user");
     }
   };
 
   const handleUnban = async (id: string) => {
-    if (!confirm("Are you sure you want to unban this user?")) return;
+    if (!confirm("Unban this user?")) return;
     try {
       const result = await apiRequest(`/admin/users/${id}/unban`, { method: "POST" });
       if (!result.ok) throw result.error;
-      fetchData(); // Refresh
+      fetchData();
     } catch (err: any) {
       alert(err.message || "Failed to unban user");
     }
   };
 
   const handlePromote = async (id: string) => {
-    if (!confirm("Promote this user to Admin?")) return;
+    if (!confirm("Promote to Admin?")) return;
     try {
       await apiRequest(`/admin/users/${id}/promote`, { method: "POST" });
       fetchData();
@@ -177,7 +219,7 @@ export default function AdminPage() {
   };
 
   const handleDemote = async (id: string) => {
-    if (!confirm("Remove Admin privileges from this user?")) return;
+    if (!confirm("Remove Admin privileges?")) return;
     try {
       await apiRequest(`/admin/users/${id}/demote`, { method: "POST" });
       fetchData();
@@ -187,12 +229,7 @@ export default function AdminPage() {
   };
 
   const handlePromoteSuper = async (id: string) => {
-    if (
-      !confirm(
-        "EXTREME WARNING: Promote this user to SUPERADMIN? They will have full system control.",
-      )
-    )
-      return;
+    if (!confirm("WARNING: Promote to SUPERADMIN? Full system control.")) return;
     try {
       await apiRequest(`/admin/users/${id}/promote-super`, { method: "POST" });
       fetchData();
@@ -202,31 +239,23 @@ export default function AdminPage() {
   };
 
   const handleTaskDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this task? This cannot be undone.")) return;
-
-    // Optimistic UI: remove immediately and keep a copy to rollback on failure
+    if (!confirm("Delete this task? Cannot be undone.")) return;
     const originalTasks = [...tasks];
     setTasks(prev => prev.filter(t => t.id !== id));
 
     try {
       const result = await apiRequest(`/admin/waitlist/tasks/${id}`, { method: 'DELETE' });
       if (!result.ok) {
-        // Rollback to original state on failure
         setTasks(originalTasks);
-        console.error('[TASK_DELETE_ERROR]', result);
         alert('Failed to delete task: ' + (result.error?.message || 'Unknown error'));
         return;
       }
     } catch (err: any) {
-      // Rollback to original state
       setTasks(originalTasks);
-      console.error('[TASK_DELETE_EXCEPTION]', err);
       alert('Failed to delete task: ' + (err?.message || 'Network error'));
       return;
     }
-
-    // If deletion succeeded, optionally refresh list
-    fetchData();
+    fetchData(); // Refresh to be safe
   };
 
   const handleTaskToggle = async (task: Task) => {
@@ -237,437 +266,289 @@ export default function AdminPage() {
       });
       fetchData();
     } catch (err: any) {
-      console.error('[TASK_TOGGLE_ERROR]', err);
       alert(err.message || "Failed to toggle task");
     }
   };
 
-  // ... imports
-
   const ICON_OPTIONS = [
-    {
-      id: "twitter",
-      label: "X (Twitter)",
-      icon: FaXTwitter,
-      color: "text-white",
-    },
-    {
-      id: "telegram",
-      label: "Telegram",
-      icon: FaTelegram,
-      color: "text-blue-400",
-    },
-    {
-      id: "discord",
-      label: "Discord",
-      icon: FaDiscord,
-      color: "text-indigo-400",
-    },
-    {
-      id: "linkedin",
-      label: "LinkedIn",
-      icon: FaLinkedin,
-      color: "text-blue-600",
-    },
+    { id: "twitter", label: "X (Twitter)", icon: FaXTwitter, color: "text-white" },
+    { id: "telegram", label: "Telegram", icon: FaTelegram, color: "text-blue-400" },
+    { id: "discord", label: "Discord", icon: FaDiscord, color: "text-indigo-400" },
+    { id: "linkedin", label: "LinkedIn", icon: FaLinkedin, color: "text-blue-600" },
     { id: "youtube", label: "YouTube", icon: FaYoutube, color: "text-red-500" },
     { id: "tiktok", label: "TikTok", icon: FaTiktok, color: "text-pink-500" },
-    {
-      id: "instagram",
-      label: "Instagram",
-      icon: FaInstagram,
-      color: "text-pink-400",
-    },
-    {
-      id: "blog",
-      label: "Blog/Article",
-      icon: FaBookOpen,
-      color: "text-emerald-400",
-    }, // Fallback to Search/FileText
-    {
-      id: "like",
-      label: "Like/Love",
-      icon: Heart,
-      color: "text-red-500",
-    },
-    {
-      id: "verification",
-      label: "Verification",
-      icon: Shield,
-      color: "text-blue-400",
-    },
-    // Additional admin-provided icons for tasks
+    { id: "instagram", label: "Instagram", icon: FaInstagram, color: "text-pink-400" },
+    { id: "blog", label: "Blog/Article", icon: FaBookOpen, color: "text-emerald-400" },
+    { id: "like", label: "Like/Love", icon: Heart, color: "text-red-500" },
+    { id: "verification", label: "Verification", icon: Shield, color: "text-blue-400" },
     { id: "wallet", label: "Wallet", icon: Wallet, color: "text-amber-400" },
     { id: "email", label: "Email", icon: Mail, color: "text-emerald-400" },
     { id: "profile", label: "User / Profile", icon: User, color: "text-white" },
-    {
-      id: "refresh",
-      label: "Refresh",
-      icon: RefreshCw,
-      color: "text-gray-400",
-    },
+    { id: "refresh", label: "Refresh", icon: RefreshCw, color: "text-gray-400" },
     { id: "link", label: "Link / Share", icon: FaShareNodes, color: "text-cyan-400" },
     { id: "eye", label: "View / Preview", icon: Eye, color: "text-sky-400" },
-    {
-      id: "document",
-      label: "Document",
-      icon: FileText,
-      color: "text-emerald-300",
-    },
-    {
-      id: "retweet",
-      label: "Retweet",
-      icon: Repeat2,
-      color: "text-emerald-300",
-    },
+    { id: "document", label: "Document", icon: FileText, color: "text-emerald-300" },
+    { id: "retweet", label: "Retweet", icon: Repeat2, color: "text-emerald-300" },
+    { id: "follow", label: "Follow", icon: UserPlus, color: "text-blue-300" },
+    { id: "question", label: "Question", icon: BadgeQuestionMark, color: "text-blue-300" },
   ];
 
   if (loading && !stats) return (
     <WaitlistLayout>
-      <div className="flex items-center justify-center h-[50vh] font-mono text-white/50 animate-pulse">
-        INITIALIZING ADMIN PROTOCOLS...
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <div className="relative w-16 h-16">
+           <div className="absolute inset-0 rounded-full border-2 border-zinc-800 border-t-[#2547D0] animate-spin" />
+           <div className="absolute inset-3 rounded-full border-2 border-zinc-800 border-b-[#2547D0] animate-spin-reverse" />
+        </div>
+        <p className="mono text-zinc-500 text-xs tracking-widest animate-pulse">
+          INITIALIZING_ADMIN_PROTOCOLS
+        </p>
       </div>
     </WaitlistLayout>
   );
 
-  if (error)
-    return (
-      <WaitlistLayout>
-        <div className="flex items-center justify-center h-[50vh] text-red-500 font-mono uppercase font-bold">
-          ACCESS DENIED: {error}
+  if (error) return (
+    <WaitlistLayout>
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-6">
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-full">
+          <Shield className="w-12 h-12 text-red-500" />
         </div>
-      </WaitlistLayout>
-    );
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
+          <p className="text-zinc-500 mono text-sm">{error}</p>
+        </div>
+      </div>
+    </WaitlistLayout>
+  );
 
   return (
     <WaitlistLayout>
-      <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-10 border-b border-white/10 pb-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20">
-              <Shield className="w-6 h-6 text-red-500" />
-            </div>
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+        .glass-panel {
+          background: rgba(18, 18, 20, 0.7);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glow-text {
+          text-shadow: 0 0 20px rgba(37, 71, 208, 0.5);
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 10px rgba(37, 71, 208, 0.2); }
+          50% { box-shadow: 0 0 20px rgba(37, 71, 208, 0.4); }
+        }
+      `}</style>
+
+      <div className="max-w-[1400px] mx-auto space-y-12 pb-20">
+        
+        {/* === HEADER === */}
+        <div className="relative">
+          <div className="absolute -top-10 -left-10 w-64 h-64 bg-[#2547D0]/20 rounded-full blur-[100px] pointer-events-none" />
+          
+          <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-8 border-b border-white/5">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                Admin Command Center
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-[#2547D0] via-[#3B5FE0] to-[#2547D0]" 
+                  style={{ boxShadow: '0 0 10px rgba(37, 71, 208, 0.4)' }}
+                />
+                <span className="mono text-[10px] text-zinc-500 uppercase tracking-widest">
+                  Command Center
+                </span>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-zinc-100 to-zinc-400 tracking-tight leading-none mb-3">
+                Admin Control 
               </h1>
-              <p className="text-xs text-gray-500 font-mono tracking-widest uppercase">
-                System Operations // PENXCHAIN
+              <p className="text-zinc-500 text-xs font-medium max-w-md leading-relaxed border-l border-[#2547D0]/30 pl-4 py-1 italic">
+                Protocol Hub: Manage engagement tasks, oversee system growth, and maintain network integrity.
               </p>
+              <div className="flex items-center gap-4 mt-6">
+                <div className="flex flex-col">
+                  <span className="mono text-[8px] text-zinc-600 uppercase tracking-[0.2em] mb-0.5">Network_Status</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    <span className="mono text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Sync_Active</span>
+                  </div>
+                </div>
+                <div className="w-px h-6 bg-white/5" />
+                <div className="flex flex-col">
+                  <span className="mono text-[8px] text-zinc-600 uppercase tracking-[0.2em] mb-0.5">Control_Level</span>
+                  <span className="mono text-[10px] text-[#2547D0] font-bold uppercase tracking-wider">{currentUserRole || "Restricted"}</span>
+                </div>
+                <div className="w-px h-6 bg-white/5" />
+                <div className="flex flex-col">
+                  <span className="mono text-[8px] text-zinc-600 uppercase tracking-[0.2em] mb-0.5">Station_ID</span>
+                  <span className="mono text-[10px] text-zinc-400 font-bold uppercase tracking-wider">PX-OMEGA-01</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-3 bg-zinc-900 border border-zinc-700/50 hover:border-zinc-500 rounded-lg transition-all mono text-xs uppercase tracking-wider group hover:bg-zinc-800"
+              >
+                <RefreshCw className={`w-4 h-4 text-zinc-400 group-hover:text-white transition-colors ${loading ? "animate-spin" : ""}`} />
+                <span className="text-zinc-400 group-hover:text-white">Synch Data</span>
+              </button>
             </div>
           </div>
-          <button
-            onClick={fetchData}
-            className="p-2 hover:bg-white/5 rounded-lg transition-colors group"
-          >
-            <RefreshCw
-              className={`w-5 h-5 text-gray-400 group-hover:text-white transition-colors ${loading ? "animate-spin" : ""}`}
-            />
-          </button>
-        </header>
+        </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {/* === STATS GRID === */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatsCard
-            title="Total Identities"
+            title="Total Network Identities"
             value={stats?.totalUsers.toLocaleString() || "0"}
-            icon={<Users className="w-5 h-5 text-[#2547D0]" />}
-            color="blue"
+            icon={<Users className="w-6 h-6 text-[#2547D0]" />}
+            trend={stats?.growthPercent !== undefined ? `${stats.growthPercent >= 0 ? '+' : ''}${stats.growthPercent}% this week` : "Loading..." }
           />
           <StatsCard
-            title="Global PXP Volume"
+            title="Total PXP Volume"
             value={stats?.totalPoints.toLocaleString() || "0"}
-            icon={<Activity className="w-5 h-5 text-green-500" />}
-            color="green"
+            icon={<Coins className="w-6 h-6 text-amber-500" />}
+            trend="High Activity"
           />
           <StatsCard
             title="Active Protocols"
             value={tasks.filter((t) => t.isActive).length.toString()}
-            icon={<Clock className="w-5 h-5 text-yellow-500" />}
-            color="yellow"
+            icon={<Target className="w-6 h-6 text-emerald-500" />}
+            trend="Operational"
           />
         </div>
 
-        {/* TASK MANAGEMENT SECTION */}
-        <section className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <Activity className="w-5 h-5 text-[#2547D0]" />
-              <h2 className="text-xl font-bold">Protocol Management</h2>
+        {/* === PROTOCOL MANAGEMENT === */}
+        <section className="space-y-6">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-3 mb-1">
+                <Activity className="w-5 h-5 text-[#2547D0]" />
+                Protocol Registry
+              </h2>
+              <p className="text-sm text-zinc-500">Active tasks and engagement protocols.</p>
             </div>
+            
             <button
               onClick={() => {
                 setEditingTask(null);
                 setShowTaskModal(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#2547D0] hover:bg-[#2547D0]/80 rounded-xl text-xs font-bold transition-all shadow-[0_0_20px_rgba(37,71,208,0.3)]"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#2547D0] hover:bg-[#1a35a0] rounded-lg text-sm font-bold text-white transition-all shadow-lg shadow-[#2547D0]/20"
             >
-              <Plus className="w-4 h-4" /> NEW PROTOCOL
+              <Plus className="w-4 h-4" />
+              New Protocol
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {tasks.length === 0 ? (
-              <div className="col-span-full py-16 text-center text-gray-500 font-mono border border-dashed border-white/10 rounded-2xl">
-                <Activity className="w-8 h-8 mx-auto mb-4 opacity-10" />
-                NO ACTIVE PROTOCOLS FOUND
+              <div className="col-span-full py-24 text-center glass-panel rounded-2xl border-dashed border-zinc-800">
+                <Activity className="w-12 h-12 mx-auto mb-4 text-zinc-800" />
+                <p className="mono text-sm text-zinc-600 uppercase">No active protocols initialized</p>
               </div>
             ) : (
               tasks.map((task) => (
-                <div
+                <TaskCard
                   key={task.id}
-                  className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 hover:border-red-500/30 transition-all group relative overflow-hidden"
-                >
-                  {!task.isActive && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                      <span className="px-3 py-1 bg-gray-800 text-gray-400 text-[10px] font-mono border border-white/10 rounded-full font-bold">
-                        PROTOCOL_OFFLINE
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-3 bg-white/5 border border-white/5 rounded-lg flex items-center justify-center w-12 h-12">
-                      {/* Dynamic Icon Rendering (larger, consistent) */}
-                      {(() => {
-                        const iconOpt =
-                          ICON_OPTIONS.find((o) => o.id === task.icon) ||
-                          ICON_OPTIONS[0];
-                        const Icon = iconOpt.icon;
-                        return <Icon className={`w-6 h-6 ${iconOpt.color}`} />;
-                      })()}
-                    </div>
-                    <div className="flex gap-2 relative z-20">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTaskToggle(task);
-                        }}
-                        className={`p-2 rounded-lg border transition-all ${task.isActive ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-gray-500/10 text-gray-500 border-gray-500/20"}`}
-                        title={task.isActive ? "Deactivate" : "Activate"}
-                      >
-                        {task.isActive ? (
-                          <CheckCircle className="w-4 h-4" />
-                        ) : (
-                          <Clock className="w-4 h-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingTask(task);
-                          setShowTaskModal(true);
-                        }}
-                        className="p-2 hover:bg-blue-500/20 rounded-lg text-gray-500 hover:text-blue-500 transition-colors"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTaskDelete(task.id);
-                        }}
-                        className="p-2 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <h3 className="font-bold text-white mb-1 uppercase tracking-tight">
-                    {task.title}
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-6 line-clamp-2 leading-relaxed">
-                    {task.description}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-white/[0.05]">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
-                        Yield
-                      </span>
-                      <span className="text-sm font-bold text-red-400">
-                        {task.points} PXP
-                      </span>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                      <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
-                        Type
-                      </span>
-                      <span className="text-[10px] font-mono text-gray-300 font-bold px-1.5 py-0.5 bg-white/5 rounded border border-white/10 uppercase">
-                        {task.type}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  task={task}
+                  iconOptions={ICON_OPTIONS}
+                  onToggle={() => handleTaskToggle(task)}
+                  onEdit={() => {
+                    setEditingTask(task);
+                    setShowTaskModal(true);
+                  }}
+                  onDelete={() => handleTaskDelete(task.id)}
+                />
               ))
             )}
           </div>
         </section>
 
-        {/* Users Table */}
-        <div className="bg-[#080808]/80 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden mb-20">
-          <div className="p-6 border-b border-white/5 flex justify-between items-center">
-            <h2 className="text-lg font-bold">Identity Database</h2>
-            <div className="flex gap-2">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="px-4 py-2 bg-white/5 rounded-lg text-xs hover:bg-white/10 disabled:opacity-50"
-              >
-                Prev
-              </button>
-              <span className="px-4 py-2 text-xs font-mono text-gray-500">
-                PAGE {page}
-              </span>
-              <button
-                disabled={page >= Math.ceil(totalUsers / 20)}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-4 py-2 bg-white/5 rounded-lg text-xs hover:bg-white/10 disabled:opacity-50"
-              >
-                Next
-              </button>
+        {/* === USER DATABASE === */}
+        <section className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-3 mb-1">
+                <Users className="w-5 h-5 text-[#2547D0]" />
+                Identity Database
+              </h2>
+              <p className="text-sm text-zinc-500">
+                Search, monitor, and manage user identities.
+              </p>
+            </div>
+
+            {/* SEARCH BAR */}
+            <div className="relative w-full md:w-96 group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <SearchIcon className="h-4 w-4 text-zinc-500 group-focus-within:text-[#2547D0] transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by username, email, or ID..."
+                className="block w-full pl-10 pr-10 py-2.5 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-[#2547D0] focus:border-[#2547D0] transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <X className="h-4 w-4 text-zinc-500 hover:text-white transition-colors" />
+                </button>
+              )}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-400">
-              <thead className="bg-white/[0.02] text-gray-500 font-mono uppercase tracking-wider">
-                <tr>
-                  <th className="p-4">User</th>
-                  <th className="p-4">Details</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">PXP</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {users.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-20 text-center text-gray-500 font-mono text-sm"
-                    >
-                      <Users className="w-8 h-8 mx-auto mb-4 opacity-20" />
-                      NO IDENTITIES DETECTED IN CLUSTER
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="border-b border-white/[0.05] hover:bg-white/[0.02] transition-colors group"
-                    >
-                      <td className="py-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-white group-hover:text-red-400 transition-colors uppercase tracking-tight">
-                            {user.username || "Anonymous"}
-                          </span>
-                          <span className="text-[10px] text-gray-500 font-mono truncate max-w-[150px]">
-                            {user.id}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-300">
-                            {user.email}
-                          </span>
-                          <span className="text-[10px] text-gray-500 font-mono">
-                            {user.walletAddress || "NO_WALLET"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4">
-                        <span
-                          className={`px-2 py-1 rounded text-[10px] font-mono font-bold ${
-                            user.role === "SUPERADMIN"
-                              ? "bg-red-500/20 text-red-500 border border-red-500/30"
-                              : user.role === "ADMIN"
-                                ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
-                                : "bg-gray-500/20 text-gray-400 border border-gray-500/30"
-                          }`}
-                        >
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="py-4 font-mono text-sm text-red-400 font-bold">
-                        {user.pxpBalance?.toLocaleString() || 0}
-                      </td>
-                      <td className="p-4">
-                        {user.isBanned ? (
-                          <span className="text-red-500 flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> BANNED
-                          </span>
-                        ) : (
-                          <span className="text-green-500 flex items-center gap-1">
-                            <Unlock className="w-3 h-3" /> ACTIVE
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Role Management (Super Admin Only) */}
-                          {currentUserRole === "SUPERADMIN" &&
-                            currentUserId !== user.id && (
-                              <>
-                                {user.role === "USER" && (
-                                  <button
-                                    onClick={() => handlePromote(user.id)}
-                                    className="p-1.5 hover:bg-blue-500/20 rounded text-blue-500 border border-blue-500/10 hover:border-blue-500/30 transition-all"
-                                    title="Promote to Admin"
-                                  >
-                                    <Users className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                {user.role === "ADMIN" && (
-                                  <div className="flex gap-1">
-                                    <button
-                                      onClick={() => handleDemote(user.id)}
-                                      className="p-1.5 hover:bg-yellow-500/20 rounded text-yellow-500 border border-yellow-500/10 hover:border-yellow-500/30 transition-all"
-                                      title="Demote to User"
-                                    >
-                                      <Unlock className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        handlePromoteSuper(user.id)
-                                      }
-                                      className="p-1.5 hover:bg-red-500/20 rounded text-red-500 border border-red-500/10 hover:border-red-500/30 transition-all"
-                                      title="Promote to SUPERADMIN"
-                                    >
-                                      <Shield className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            )}
 
-                          {user.isBanned ? (
-                            <button
-                              onClick={() => handleUnban(user.id)}
-                              className="p-1.5 rounded border transition-all bg-green-500/20 text-green-500 border-green-500/30 hover:bg-green-500/30"
-                              title="Unban User"
-                            >
-                              <Unlock className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleBan(user.id)}
-                              className="p-1.5 rounded border transition-all hover:bg-red-500/20 text-gray-500 hover:text-red-500 border-transparent hover:border-red-500/30"
-                              title="Ban User"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="glass-panel rounded-2xl overflow-hidden shadow-2xl">
+            <UserTable
+              users={users}
+              loading={loading}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              onBan={handleBan}
+              onUnban={handleUnban}
+              onPromote={handlePromote}
+              onDemote={handleDemote}
+              onPromoteSuper={handlePromoteSuper}
+            />
+            
+            {/* PAGINATION */}
+            <div className="px-6 py-4 border-t border-white/5 bg-zinc-900/40 flex items-center justify-between">
+               <span className="mono text-xs text-zinc-500">
+                 Showing {(page - 1) * 20 + 1}-{Math.min(page * 20, totalUsers)} of {totalUsers}
+               </span>
+               <div className="flex items-center gap-2">
+                 <button
+                    disabled={page === 1 || loading}
+                    onClick={() => setPage(p => p - 1)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-medium text-white transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={page >= Math.ceil(totalUsers / 20) || loading}
+                    onClick={() => setPage(p => p + 1)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-medium text-white transition-colors"
+                  >
+                    Next
+                  </button>
+               </div>
+            </div>
           </div>
-        </div>
+        </section>
+
       </div>
 
       {showTaskModal && (
@@ -685,12 +566,220 @@ export default function AdminPage() {
   );
 }
 
-function TaskModal({
-  task,
-  onClose,
-  onSave,
-  iconOptions,
-}: {
+// --- SUB COMPONENTS ---
+
+function StatsCard({ title, value, icon, trend }: { title: string; value: string; icon: React.ReactNode; trend?: string }) {
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className="glass-panel p-6 rounded-2xl relative overflow-hidden group"
+    >
+      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+        {React.isValidElement(icon) && React.cloneElement(icon as React.ReactElement<any>, { size: 60 })}
+      </div>
+      
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="p-3 bg-zinc-900/80 rounded-xl border border-white/5">
+            {icon}
+          </div>
+          {trend && (
+             <span className="mono text-[10px] bg-green-500/10 text-green-400 px-2 py-1 rounded-full border border-green-500/20">
+               {trend}
+             </span>
+          )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">{title}</p>
+          <h3 className="text-3xl font-bold text-white mono tracking-tight">{value}</h3>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function TaskCard({ task, iconOptions, onToggle, onEdit, onDelete }: {
+  task: Task;
+  iconOptions: any[];
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const iconOpt = iconOptions.find((o) => o.id === task.icon) || iconOptions[0];
+  const Icon = iconOpt.icon;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className={`relative p-5 rounded-2xl border transition-all group ${
+        task.isActive 
+          ? "bg-zinc-900/40 border-zinc-800/60 hover:border-[#2547D0]/30 hover:bg-zinc-900/60" 
+          : "bg-zinc-950/40 border-zinc-800/40 opacity-70"
+      }`}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+          task.isActive 
+            ? "bg-zinc-900 border-zinc-700 text-white" 
+            : "bg-zinc-950 border-zinc-800 text-zinc-600"
+        }`}>
+          <Icon className={task.isActive ? iconOpt.color : ""} size={18} />
+        </div>
+        
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+           <button onClick={onEdit} className="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white">
+             <Edit3 size={14} />
+           </button>
+           <button onClick={onDelete} className="p-1.5 hover:bg-red-500/20 rounded-md text-zinc-400 hover:text-red-400">
+             <Trash2 size={14} />
+           </button>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="font-bold text-white text-sm mb-1 truncate">{task.title}</h3>
+        <p className="text-xs text-zinc-500 line-clamp-2 min-h-[2.5em]">{task.description}</p>
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="mono text-sm font-bold text-white">{task.points} PXP</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase">
+             {task.type}
+          </span>
+        </div>
+        
+        <button
+          onClick={onToggle}
+          className={`relative w-8 h-4 rounded-full transition-colors ${
+            task.isActive ? "bg-[#2547D0]" : "bg-zinc-700"
+          }`}
+        >
+          <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
+            task.isActive ? "translate-x-4" : "translate-x-0"
+          }`} />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function UserTable({ users, loading, currentUserId, currentUserRole, onBan, onUnban, onPromote, onDemote, onPromoteSuper }: any) {
+  if (loading) {
+    return (
+       <div className="p-12 text-center">
+         <p className="text-zinc-600 mono animate-pulse">Scanning Identity Database...</p>
+       </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="bg-zinc-900/60 border-b border-white/5">
+            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Identity</th>
+            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Metrics</th>
+            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Role</th>
+            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Status</th>
+            <th className="px-6 py-4 text-right mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Control</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {users.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="py-24 text-center">
+                <Users className="w-10 h-10 mx-auto mb-4 text-zinc-800" />
+                <p className="text-zinc-500 text-sm">No identities match your query.</p>
+              </td>
+            </tr>
+          ) : (
+            users.map((user: AdminUser) => (
+              <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+                      {user.username.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-bold text-sm">{user.username}</p>
+                      <p className="mono text-[10px] text-zinc-600">{user.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="space-y-1">
+                     <div className="flex items-center gap-2">
+                        <Coins size={12} className="text-amber-500" />
+                        <span className="mono text-xs font-bold text-white">{user.pxpBalance.toLocaleString()}</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                        <Activity size={12} className="text-zinc-600" />
+                        <span className="mono text-[10px] text-zinc-600">Streak: {user.dailyStreak || 0}</span>
+                     </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-2.5 py-1 rounded-md mono text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${
+                    user.role === "SUPERADMIN"
+                      ? "bg-[#2547D0] text-white shadow shadow-[#2547D0]/40"
+                      : user.role === "ADMIN"
+                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                      : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                  }`}>
+                    {user.role === "SUPERADMIN" && <Crown size={10} />}
+                    {user.role}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  {user.isBanned ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">
+                      <Lock size={10} /> BANNED
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold">
+                      <CheckCircle size={10} /> ACTIVE
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                    {/* User Actions */}
+                    {currentUserRole === "SUPERADMIN" && currentUserId !== user.id && (
+                       <>
+                         <button
+                           onClick={() => user.role === 'USER' ? onPromote(user.id) : onDemote(user.id)}
+                           className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                           title={user.role === 'USER' ? "Promote to Admin" : "Demote"}
+                          >
+                           {user.role === 'USER' ? <ArrowUpRight size={14} /> : <ArrowUpRight size={14} className="rotate-180" />}
+                          </button>
+                       </>
+                    )}
+
+                    {user.isBanned ? (
+                      <button onClick={() => onUnban(user.id)} className="p-2 bg-zinc-800 hover:bg-emerald-900/50 rounded-lg text-zinc-400 hover:text-emerald-400 transition-colors" title="Unban">
+                        <Unlock size={14} />
+                      </button>
+                    ) : (
+                      <button onClick={() => onBan(user.id)} className="p-2 bg-zinc-800 hover:bg-red-900/50 rounded-lg text-zinc-400 hover:text-red-400 transition-colors" title="Ban">
+                        <Lock size={14} />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TaskModal({ task, onClose, onSave, iconOptions }: {
   task: Task | null;
   onClose: () => void;
   onSave: () => void;
@@ -705,140 +794,158 @@ function TaskModal({
     icon: task?.icon || "twitter",
     category: task?.category || "engagement",
     isActive: task?.isActive !== undefined ? task.isActive : true,
-    durationDays: (task as any)?.durationDays || 7, // Default 7 days for SOCIAL tasks
+    durationDays: (task as any)?.durationDays || 7,
   });
+
+  // Scroll Lock and Keyboard Interaction
+  useEffect(() => {
+    // Lock body scroll and prevent layout shift
+    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollBarWidth}px`;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close
+      if (e.key === "Escape") onClose();
+      
+      // Prevent Arrow/Page keys from scrolling background 
+      // when inside the modal if the target isn't already scrollable
+      const scrollableKeys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
+      if (scrollableKeys.includes(e.key)) {
+        const isTargetScrollable = (target: HTMLElement) => {
+           return target.scrollHeight > target.clientHeight;
+        };
+        if (!isTargetScrollable(e.target as HTMLElement)) {
+          // If the target itself isn't scrollable, we could prevent default 
+          // or rely on overscroll-behavior: contain
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.body.style.paddingRight = '0px';
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = task
-        ? `/admin/waitlist/tasks/${task.id}`
-        : "/admin/waitlist/tasks";
+      const url = task ? `/admin/waitlist/tasks/${task.id}` : "/admin/waitlist/tasks";
       const method = task ? "PUT" : "POST";
-      // Sanitize and prepare body
       const safeBody = {
         ...formData,
         points: Number.isNaN(formData.points) ? 0 : formData.points,
-        // Only include durationDays for SOCIAL tasks
-        durationDays:
-          formData.type === "SOCIAL" ? formData.durationDays : undefined,
+        durationDays: formData.type === "SOCIAL" ? formData.durationDays : undefined,
       };
       const res = await apiRequest(url, { method, body: safeBody });
       if (!res.ok) throw res.error;
       onSave();
     } catch (err: any) {
-      console.error('[TASK_SAVE_ERROR]', err);
       alert(err.message || "Operation failed");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md overscroll-none"
+      onWheel={(e) => e.stopPropagation()}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh]"
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="glass-panel border-zinc-800 rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl overscroll-contain outline-none"
+        tabIndex={-1} // Allow focus for keyboard events
       >
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#2547D0]" />
-          {task ? "RECONFIGURE PROTOCOL" : "INITIALIZE PROTOCOL"}
-        </h2>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-black text-white flex items-center gap-3">
+             <div className="p-2 bg-[#2547D0] rounded-lg">
+               <Shield className="w-5 h-5 text-white" />
+             </div>
+            {task ? "Edit Protocol" : "New Protocol"}
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            <X className="w-5 h-5 text-zinc-400" />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-[10px] uppercase font-mono text-gray-500 mb-1 block">
-              Title
-            </label>
-            <input
-              required
-              type="text"
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-[#2547D0] outline-none transition-colors"
-              value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <label className="text-[10px] uppercase font-mono text-gray-500 mb-1 block">
-              Description
-            </label>
-            <textarea
-              required
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-[#2547D0] outline-none transition-colors h-24"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] uppercase font-mono text-gray-500 mb-1 block">
-                Type
-              </label>
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-[#2547D0] outline-none appearance-none"
-                value={formData.type}
-                onChange={(e) =>
-                  setFormData({ ...formData, type: e.target.value as any })
-                }
-              >
-                <option value="SOCIAL">SOCIAL (Expires)</option>
-                <option value="DAILY">DAILY (Resets)</option>
-                <option value="ONE_TIME">ONE_TIME (Permanent)</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] uppercase font-mono text-gray-500 mb-1 block">
-                Points
-              </label>
-              <input
-                required
-                type="number"
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-[#2547D0] outline-none"
-                value={Number.isNaN(formData.points) ? "" : formData.points}
-                onChange={(e) =>
-                  setFormData({ ...formData, points: parseInt(e.target.value) })
-                }
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+             <div>
+               <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Title</label>
+               <input
+                 required
+                 type="text"
+                 className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-3.5 text-sm text-white focus:border-[#2547D0] outline-none"
+                 value={formData.title}
+                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                 placeholder="e.g., Follow us on Twitter"
+               />
+             </div>
+             <div>
+               <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Description</label>
+               <textarea
+                 required
+                 className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-3.5 text-sm text-white focus:border-[#2547D0] outline-none min-h-[100px]"
+                 value={formData.description}
+                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                 placeholder="Explain what the user needs to do..."
+               />
+             </div>
+             
+             <div className="grid grid-cols-2 gap-4">
+               <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Type</label>
+                  <select
+                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-3.5 text-sm text-white focus:border-[#2547D0] outline-none"
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                  >
+                    <option value="SOCIAL">Social Interaction</option>
+                    <option value="DAILY">Daily Check-in</option>
+                    <option value="ONE_TIME">One-time Action</option>
+                  </select>
+               </div>
+               <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Reward (PXP)</label>
+                  <input
+                    required
+                    type="number"
+                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-3.5 text-sm text-white focus:border-[#2547D0] outline-none"
+                    value={Number.isNaN(formData.points) ? "" : formData.points}
+                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) })}
+                  />
+               </div>
+             </div>
+             
+             <div>
+               <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Action Link</label>
+               <div className="relative">
+                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                   <Share2 size={14} className="text-zinc-600" />
+                 </div>
+                 <input
+                   type="url"
+                   className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 p-3.5 text-sm text-white focus:border-[#2547D0] outline-none"
+                   value={formData.link}
+                   onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                   placeholder="https://..."
+                 />
+               </div>
+             </div>
           </div>
 
-          {/* Duration Days - Only shown for SOCIAL tasks */}
-          {formData.type === "SOCIAL" && (
-            <div>
-              <label className="text-[10px] uppercase font-mono text-gray-500 mb-1 block">
-                Duration (Days){" "}
-                <span className="text-yellow-500">
-                  - Auto-deletes after expiry
-                </span>
-              </label>
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-[#2547D0] outline-none appearance-none"
-                value={formData.durationDays}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    durationDays: parseInt(e.target.value),
-                  })
-                }
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 10, 14, 21, 30].map((d) => (
-                  <option key={d} value={d}>
-                    {d} {d === 1 ? "Day" : "Days"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* ICON PICKER */}
           <div>
-            <label className="text-[10px] uppercase font-mono text-gray-500 mb-2 block">
-              Protocol Icon
-            </label>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 block">Iconography</label>
+            <div 
+              className="grid grid-cols-5 gap-3 p-4 bg-zinc-900/30 rounded-xl border border-zinc-800/50 max-h-40 overflow-y-auto custom-scrollbar overscroll-contain focus:border-[#2547D0]/50 outline-none"
+              tabIndex={0} // Make grid keyboard scrollable
+              onWheel={(e) => e.stopPropagation()} // Stop wheel event from reaching backdrop
+            >
               {iconOptions.map((opt) => {
                 const Icon = opt.icon;
                 const isSelected = formData.icon === opt.id;
@@ -847,96 +954,36 @@ function TaskModal({
                     key={opt.id}
                     type="button"
                     onClick={() => setFormData({ ...formData, icon: opt.id })}
-                    className={`aspect-square flex items-center justify-center rounded-lg border transition-all ${
+                    className={`aspect-square flex items-center justify-center rounded-xl transition-all ${
                       isSelected
-                        ? "bg-[#2547D0] border-[#2547D0] text-white shadow-lg scale-105"
-                        : "bg-white/5 border-white/5 hover:bg-white/10 text-gray-500"
+                        ? "bg-[#2547D0] text-white shadow-lg shadow-[#2547D0]/20 scale-105"
+                        : "bg-zinc-800/50 text-zinc-500 hover:bg-zinc-700 hover:text-white"
                     }`}
-                    title={opt.label}
                   >
-                    <Icon
-                      className={`w-6 h-6 ${isSelected ? "text-white" : ""}`}
-                    />
+                    <Icon size={20} />
                   </button>
                 );
               })}
             </div>
-            {formData.icon && (
-              <div className="mt-2 text-[11px] text-gray-400 font-mono">
-                Selected:{" "}
-                {iconOptions.find((i) => i.id === formData.icon)?.label}
-              </div>
-            )}
           </div>
 
-          <div>
-            <label className="text-[10px] uppercase font-mono text-gray-500 mb-1 block">
-              Landing Link
-            </label>
-            <input
-              type="url"
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:border-[#2547D0] outline-none"
-              value={formData.link}
-              onChange={(e) =>
-                setFormData({ ...formData, link: e.target.value })
-              }
-              placeholder="https://..."
-            />
-          </div>
-
-          <div className="flex gap-4 pt-4">
+          <div className="pt-4 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 border border-white/10 rounded-xl text-xs font-bold hover:bg-white/5 transition-colors"
+              className="px-5 py-2.5 rounded-xl font-bold text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
             >
-              CANCEL
+              Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 bg-[#2547D0] text-white rounded-xl text-xs font-bold hover:bg-[#2547D0]/80 transition-colors shadow-[0_0_20px_rgba(37,71,208,0.2)]"
+              className="px-6 py-2.5 rounded-xl font-bold text-sm bg-[#2547D0] hover:bg-[#1e3aa0] text-white shadow-lg shadow-[#2547D0]/20 transition-all hover:scale-[1.02]"
             >
-              {task ? "UPDATE" : "GENERATE"}
+              {task ? "Save Changes" : "Create Protocol"}
             </button>
           </div>
         </form>
       </motion.div>
     </div>
-  );
-}
-
-function StatsCard({
-  title,
-  value,
-  icon,
-  color,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  const bgColors: Record<string, string> = {
-    blue: "bg-[#2547D0]/10 border-[#2547D0]/20",
-    green: "bg-green-500/10 border-green-500/20",
-    yellow: "bg-yellow-500/10 border-yellow-500/20",
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`p-6 rounded-2xl border backdrop-blur-md ${bgColors[color] || "bg-white/5 border-white/10"}`}
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">
-            {title}
-          </p>
-          <h3 className="text-3xl font-bold text-white mt-1">{value}</h3>
-        </div>
-        {icon}
-      </div>
-    </motion.div>
   );
 }

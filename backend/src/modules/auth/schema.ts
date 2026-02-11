@@ -11,7 +11,8 @@ export const signupSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email().optional(),
+  identifier: z.string().min(3).optional(), // Email OR username
+  email: z.string().email().optional(),     // Keep for backward compat
   password: z.string().optional(),
   walletAddress: z.string().min(10).optional(),
   signature: z.string().optional(),

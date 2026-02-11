@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ConflictError = exports.NotFoundError = exports.ForbiddenError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
+exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ConflictError = exports.NotFoundError = exports.ForbiddenError = exports.InvalidCredentialsError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
 exports.wrapDatabaseOperation = wrapDatabaseOperation;
 class AppError extends Error {
     statusCode;
@@ -26,6 +26,12 @@ class UnauthorizedError extends AppError {
     }
 }
 exports.UnauthorizedError = UnauthorizedError;
+class InvalidCredentialsError extends AppError {
+    constructor(message = "Invalid credentials") {
+        super(message, 401);
+    }
+}
+exports.InvalidCredentialsError = InvalidCredentialsError;
 class ForbiddenError extends AppError {
     constructor(message = "You don't have permission to access this resource") {
         super(message, 403);

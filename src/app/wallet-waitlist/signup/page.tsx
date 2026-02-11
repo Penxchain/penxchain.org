@@ -470,6 +470,23 @@ function SignupContent() {
                       </Link>
                     </div>
                   )}
+                  {/* Device ID Conflict Handling */}
+                  {(error.includes("device") || error.includes("previous account")) && (
+                    <div className="flex gap-3">
+                      <Link
+                        href="/wallet-waitlist/login"
+                        className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all text-xs rounded-md"
+                      >
+                        Log in to existing account
+                      </Link>
+                      <Link
+                        href="/wallet-waitlist/forgot"
+                        className="px-4 py-2 bg-transparent border border-white/10 text-xs rounded-md hover:bg-white/5"
+                      >
+                        Forgot password
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
 

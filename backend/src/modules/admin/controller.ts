@@ -25,14 +25,15 @@ export async function getStatsHandler(
 const querySchema = z.object({
   page: z.coerce.number().default(1),
   limit: z.coerce.number().default(20),
+  search: z.string().optional(),
 });
 
 export async function getUsersHandler(
   request: any,
   reply: any,
 ) {
-  const { page, limit } = request.query;
-  const data = await getAllUsers(page, limit);
+  const { page, limit, search } = request.query;
+  const data = await getAllUsers(page, limit, search);
   return reply.send(data);
 }
 

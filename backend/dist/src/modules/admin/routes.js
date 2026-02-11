@@ -22,6 +22,7 @@ async function adminRoutes(app) {
             querystring: zod_1.default.object({
                 page: zod_1.default.coerce.number().default(1),
                 limit: zod_1.default.coerce.number().default(20),
+                search: zod_1.default.string().optional(),
             }),
             tags: ["Admin"],
             summary: "List users",

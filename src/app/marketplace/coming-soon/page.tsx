@@ -50,8 +50,8 @@ export default function MarketplaceComingSoon() {
     <main className="relative w-full min-h-svh flex flex-col items-center justify-center overflow-hidden bg-[#030305] text-white selection:bg-indigo-500/30">
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
-        <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-indigo-600/20 blur-[120px] rounded-full animate-pulse-slow"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-125 h-125 bg-purple-600/20 blur-[120px] rounded-full animate-pulse-slow delay-1000"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-[blue]/20 blur-[120px] rounded-full animate-pulse-slow"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-125 h-125 bg-[black]/20 blur-[120px] rounded-full animate-pulse-slow delay-1000"></div>
       </div>
 
       <div className="absolute top-8 left-6 md:left-12 z-20">
@@ -92,7 +92,7 @@ export default function MarketplaceComingSoon() {
           className="font-space font-bold text-4xl sm:text-6xl md:text-7xl mb-6 tracking-tight"
         >
           Commerce, <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-400 via-purple-300 to-white">
+          <span className="text-transparent bg-clip-text bg-linear-to-r from-[blue]/20 via-grey-300 to-white">
             Decrypted.
           </span>
         </motion.h1>
@@ -133,7 +133,7 @@ export default function MarketplaceComingSoon() {
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit} className="relative group">
-              <div className="absolute -inset-1 bg-linear-to-r from-indigo-500 to-purple-600 rounded-2xl opacity-30 group-hover:opacity-60 blur transition duration-500"></div>
+              <div className="absolute -inset-1 bg-linear-to-r from-blue-600 to-black-300 rounded-2xl opacity-30 group-hover:opacity-60 blur transition duration-500"></div>
 
               <div className="relative flex items-center bg-[#0A0A12] border border-white/10 rounded-2xl p-2 pl-4">
                 <Bell className="text-gray-500 mr-3" size={20} />
@@ -151,7 +151,7 @@ export default function MarketplaceComingSoon() {
                 <button
                   type="submit"
                   disabled={status === "submitting"}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white px-6 py-3 rounded-xl font-semibold transition-all shrink-0 min-w-30 flex justify-center items-center"
+                  className="bg-blue-100/20 hover:bg-blue-100/30 disabled:bg-indigo-800 text-white px-6 py-3 rounded-xl font-semibold transition-all shrink-0 min-w-30 flex justify-center items-center"
                 >
                   {status === "submitting" ? (
                     <Loader2 size={20} className="animate-spin" />

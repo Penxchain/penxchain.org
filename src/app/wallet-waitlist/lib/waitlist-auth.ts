@@ -70,31 +70,37 @@ function clearSession() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-// Login function (Supports both Email/Password and Wallet/Signature)
+// Login function (Supports Email/Username/Password and Wallet/Signature)
 export async function login(
-  emailOrWallet: string,
+  identifierOrWallet: string,
   passwordOrSignature?: string,
   recaptchaToken?: string, // Added for bot protection
 ): Promise<AuthResponse> {
   try {
-    // If input contains '@', treat as email login, else treat as wallet login
-    const isEmail = emailOrWallet.includes("@");
-    const body = isEmail
+    // If input contains '@', treat as email. If strictly alphanumeric < 42 chars, could be username.
+    // However, backend `identifier` field handles both email and username.
+    // Wallet login is distinct by having a signature usually, or being a long hex string.
+    
+    // Simple heuristic: if it looks like a wallet address (starts with 0x, long), verify signature.
+    // Otherwise treat as identifier (email or username).
+    const isWallet = identifierOrWallet.startsWith("0x") && identifierOrWallet.length > 30;
+    
+    const body = !isWallet
       ? {
-          email: emailOrWallet.toLowerCase(),
+          identifier: identifierOrWallet.trim(), // Send as 'identifier' to match new backend schema
           password: passwordOrSignature,
           recaptchaToken,
         }
       : {
-          walletAddress: emailOrWallet,
+          walletAddress: identifierOrWallet,
           signature: passwordOrSignature,
           recaptchaToken,
         };
 
     console.debug(
-      `[AUTH] Attempting login via ${isEmail ? "email" : "wallet"}:`,
+      `[AUTH] Attempting login via ${!isWallet ? "identifier" : "wallet"}:`,
       {
-        identifier: emailOrWallet,
+        identifier: identifierOrWallet,
         hasCredential: !!passwordOrSignature,
       },
     );
