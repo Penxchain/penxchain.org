@@ -352,7 +352,7 @@ export default function Documentation() {
 
             hidden lg:block shrink-0 sticky top-20
 
-            h-[calc(100vh-80px)] overflow-y-auto overscroll-contain border-r border-white/5 custom-scrollbar
+            h-[calc(100vh-80px)] overflow-y-auto overscroll-contain border-r border-white/5 custom-scrollbar outline-none
 
             transition-all duration-300 ease-in-out
 
@@ -363,6 +363,8 @@ export default function Documentation() {
             }
 
           `}
+          tabIndex={0}
+          onWheel={(e) => e.stopPropagation()}
         >
           <div className="p-6 pb-20 w-[300px]">
             <div className="flex flex-col gap-8">
@@ -487,7 +489,8 @@ export default function Documentation() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm lg:hidden overscroll-none"
+              onWheel={(e) => e.stopPropagation()}
             />
 
             {/* Mobile Sidebar - Scrolls independently */}
@@ -547,7 +550,11 @@ export default function Documentation() {
 
               {/* Scrollable Content */}
 
-              <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar p-6 pt-4">
+              <div 
+                className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar p-6 pt-4 outline-none"
+                tabIndex={0}
+                onWheel={(e) => e.stopPropagation()}
+              >
                 <div className="flex flex-col gap-6 pb-8">
                   {filteredStructure.map((section, idx) => (
                     <div key={idx}>
