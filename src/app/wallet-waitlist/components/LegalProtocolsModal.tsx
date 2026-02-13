@@ -16,30 +16,20 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Lock body scroll when modal is open
+  // Scroll Lock matching Admin Page implementation
   useEffect(() => {
     if (isOpen) {
-      // Save current scroll position
-      const scrollY = window.scrollY;
-      
-      // Lock the body
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
+      // Lock body scroll and prevent layout shift
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = 'hidden';
-
+      document.body.style.paddingRight = `${scrollBarWidth}px`;
+      
       // Focus the modal for keyboard navigation
       modalRef.current?.focus();
 
       return () => {
-        // Unlock the body
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
         document.body.style.overflow = '';
-        
-        // Restore scroll position
-        window.scrollTo(0, scrollY);
+        document.body.style.paddingRight = '';
       };
     }
   }, [isOpen]);
@@ -115,7 +105,8 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 md:p-6"
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 md:p-6 overscroll-none"
+            onWheel={(e) => e.stopPropagation()}
           />
 
           {/* Modal Container */}
@@ -125,7 +116,7 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed inset-x-4 top-[5%] md:top-[10%] md:inset-x-auto md:w-full md:max-w-3xl md:h-[80vh] z-[101] bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden self-center justify-self-center mx-auto outline-none"
+            className="fixed inset-x-4 top-[5%] md:top-[10%] md:inset-x-auto md:w-full md:max-w-3xl md:h-[80vh] z-[101] bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden self-center justify-self-center mx-auto outline-none overscroll-contain"
           >
             {/* Header */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
@@ -184,7 +175,9 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
             {/* Content Area with Custom Scrollbar */}
             <div 
               ref={scrollContainerRef}
-              className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar"
+              className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar overscroll-contain outline-none"
+              tabIndex={0}
+              onWheel={(e) => e.stopPropagation()}
             >
               {activeTab === 'terms' ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">

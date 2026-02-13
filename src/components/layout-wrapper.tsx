@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
+import WalletWaitlistPortal from "@/components/wallet-waitlist-portal";
 
 export default function LayoutWrapper({
   children,
@@ -40,6 +41,8 @@ export default function LayoutWrapper({
       {showNavbar && <Navbar enableAnchorScroll={enableAnchorScroll} />}
 
       {children}
+
+      <WalletWaitlistPortal />
 
       {showFooter && <Footer />}
     </>
