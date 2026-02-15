@@ -68,6 +68,28 @@ export class ForbiddenError extends AppError {
 }
 
 /**
+ * 423 Locked - Account under review (referral penalty window)
+ * Consistent message across login, middleware, and API with dynamic time remaining.
+ */
+export class AccountLockedError extends AppError {
+  constructor(reviewEndsAt?: Date | null) {
+    let timeMsg = "Please try again later.";
+    if (reviewEndsAt) {
+      const msLeft = new Date(reviewEndsAt).getTime() - Date.now();
+      if (msLeft > 0) {
+        const minsLeft = Math.ceil(msLeft / 60000);
+        timeMsg = minsLeft > 1
+          ? `Please try again in ${minsLeft} minutes.`
+          : "Please try again in about a minute.";
+      } else {
+        timeMsg = "Your review period has ended. Please try logging in again.";
+      }
+    }
+    super(`Your account is currently under review due to referral activity. ${timeMsg}`, 423);
+  }
+}
+
+/**
  * 404 Not Found - Resource doesn't exist
  */
 export class NotFoundError extends AppError {

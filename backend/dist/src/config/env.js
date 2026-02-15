@@ -19,6 +19,7 @@ const envSchema = zod_1.z.object({
     SUPER_ADMIN_ID: zod_1.z.string().min(1, "SUPER_ADMIN_ID is required"),
     PASSWORD_PEPPER: zod_1.z.string().min(32, "PASSWORD_PEPPER must be at least 32 chars"),
     RECAPTCHA_SECRET_KEY: zod_1.z.string().optional(),
+    PENALTY_WINDOW_MINUTES: zod_1.z.coerce.number().min(1).max(1440).default(30),
 });
 const _env = envSchema.safeParse(process.env);
 if (!_env.success) {

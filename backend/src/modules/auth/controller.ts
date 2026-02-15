@@ -18,7 +18,7 @@ export async function signupHandler(
     }
 
     const user = await createUser(request.body);
-    const token = request.server.jwt.sign({ id: user.id, role: user.role });
+    const token = request.server.jwt.sign({ id: user.id, role: user.role, tokenVersion: 0 });
     // Do not send password hash back to the client
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...safeUser } = user as any;
@@ -49,7 +49,7 @@ export async function loginHandler(
 
 
     const user = await loginUser(request.body);
-    const token = request.server.jwt.sign({ id: user.id, role: user.role });
+    const token = request.server.jwt.sign({ id: user.id, role: user.role, tokenVersion: (user as any).tokenVersion || 0 });
     // Omit password hash from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...safeUser } = user as any;

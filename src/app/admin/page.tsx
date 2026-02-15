@@ -38,6 +38,8 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { apiRequest } from "@/lib/api-client";
+import { PXPHistoryModal } from "./components/PXPHistoryModal";
+import { BannedIdentities } from "./components/BannedIdentities";
 import WaitlistLayout from "../wallet-waitlist/components/WaitlistLayout";
 import {
   FaXTwitter,
@@ -68,7 +70,17 @@ interface AdminUser {
   createdAt: string;
   walletAddress: string | null;
   isBanned: boolean;
+  banReason?: string;
+  bannedAt?: string;
   dailyStreak: number;
+  // Extended fields for specific tabs
+  accountStatus?: string;
+  reviewEndsAt?: string;
+  deviceId?: string;
+  count?: number; // for duplicates
+  user_ids?: string[]; // for duplicates
+  usernames?: string[]; // for duplicates
+  created_ats?: string[]; // for duplicates
 }
 
 interface Task {
@@ -83,6 +95,10 @@ interface Task {
   isActive: boolean;
 }
 
+type TabType = 'users' | 'under_review' | 'duplicates' | 'no_device' | 'banned';
+type SortField = 'pxpBalance' | 'createdAt' | 'dailyStreak';
+type SortDir = 'asc' | 'desc';
+
 // --- Main Component ---
 export default function AdminPage() {
   const router = useRouter();
@@ -95,10 +111,14 @@ export default function AdminPage() {
   
   // UI State
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('users');
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortField>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [error, setError] = useState("");
+  const [inactiveDays, setInactiveDays] = useState<number | "">("");
   
   // Auth State
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -107,6 +127,7 @@ export default function AdminPage() {
   // Modal State
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [historyUser, setHistoryUser] = useState<{ id: string; username: string } | null>(null);
 
   // --- Effects ---
 
@@ -134,7 +155,7 @@ export default function AdminPage() {
   // Fetch Data
   useEffect(() => {
     fetchData();
-  }, [page, debouncedSearch]);
+  }, [page, debouncedSearch, activeTab, sortBy, sortDir, inactiveDays]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -142,32 +163,78 @@ export default function AdminPage() {
       const queryParams = new URLSearchParams({
         limit: "20",
         page: page.toString(),
+        sortBy,
+        sortDir,
       });
       if (debouncedSearch) {
         queryParams.append("search", debouncedSearch);
       }
+      if (activeTab === 'users' && inactiveDays !== "") {
+        queryParams.append("inactiveDays", inactiveDays.toString());
+      }
+
+      // 1. Always fetch stats and tasks (could optimize later)
+      const statsPromise = apiRequest<Stats>("/admin/stats");
+      const tasksPromise = apiRequest<{ tasks: Task[] }>("/admin/waitlist/tasks");
+
+      // 2. Fetch users based on active tab
+      let usersPromise;
+      switch (activeTab) {
+        case 'users':
+          usersPromise = apiRequest<{ users: AdminUser[]; total: number }>(
+            `/admin/users?${queryParams.toString()}`
+          );
+          break;
+        case 'under_review':
+          usersPromise = apiRequest<{ users: AdminUser[]; total: number }>(
+            `/admin/penalty/under-review?${queryParams.toString()}`
+          );
+          break;
+        case 'duplicates':
+          usersPromise = apiRequest<{ duplicates: any[]; total: number }>(
+            `/admin/devices/duplicates?${queryParams.toString()}`
+          );
+          break;
+        case 'no_device':
+          usersPromise = apiRequest<{ users: AdminUser[]; total: number }>(
+            `/admin/devices/missing?${queryParams.toString()}`
+          );
+          break;
+        case 'banned':
+          usersPromise = apiRequest<{ users: AdminUser[]; total: number }>(
+            `/admin/users/banned?${queryParams.toString()}`
+          );
+          break;
+      }
 
       const [statsResult, usersResult, tasksResult] = await Promise.all([
-        apiRequest<Stats>("/admin/stats"),
-        apiRequest<{ users: AdminUser[]; total: number }>(
-          `/admin/users?${queryParams.toString()}`
-        ),
-        apiRequest<{ tasks: Task[] }>("/admin/waitlist/tasks"),
+        statsPromise,
+        usersPromise,
+        tasksPromise,
       ]);
 
+      // Note: Re-using logic but ensuring all have total
       if (!statsResult.ok) throw statsResult.error;
       setStats(statsResult.data);
 
       if (!usersResult.ok) throw usersResult.error;
-      setUsers(usersResult.data.users);
-      setTotalUsers(usersResult.data.total);
+      
+      // Normalize response data structure
+      if (['users', 'under_review', 'no_device', 'banned'].includes(activeTab)) {
+        const data = (usersResult.data as { users: AdminUser[]; total: number });
+        setUsers(data.users || []);
+        setTotalUsers(data.total || 0);
+      } else if (activeTab === 'duplicates') {
+        const data = (usersResult.data as { duplicates: any[]; total: number });
+        setUsers(data.duplicates || []); 
+        setTotalUsers(data.total || 0);
+      }
 
-      if (!tasksResult.ok) throw tasksResult.error;
-      setTasks(tasksResult.data.tasks);
+      if (tasksResult.ok) setTasks(tasksResult.data.tasks);
+
     } catch (err: any) {
       console.error("[ADMIN_FETCH_ERROR]", err);
       setError(err.message || "Access Denied");
-      // Only redirect if it's a 403/401, otherwise show error
       if (err.message && (err.message.includes("Access") || err.message.includes("Denied"))) {
          router.push("/wallet-waitlist/dashboard");
       }
@@ -267,6 +334,48 @@ export default function AdminPage() {
       fetchData();
     } catch (err: any) {
       alert(err.message || "Failed to toggle task");
+    }
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDir('desc'); // Default to desc for new field
+    }
+  };
+
+  const handleBanDevice = async (deviceId: string) => {
+    const reason = prompt("Enter ban reason for ALL users on this device:");
+    if (!reason) return;
+    
+    if (!confirm(`WARNING: This will BAN ALL accounts associated with device ID: ${deviceId}. Are you sure?`)) return;
+
+    try {
+      const res = await apiRequest<{ count: number; message: string }>(`/admin/devices/${deviceId}/ban`, {
+        method: "POST",
+        body: { reason },
+      });
+      if (!res.ok) throw res.error;
+      alert(`Success: ${res.data.count} users banned.`);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || "Failed to ban device users");
+    }
+  };
+
+  const handleBanNoDevice = async () => {
+    try {
+      const res = await apiRequest<{ count: number; message: string }>("/admin/devices/no-device/ban", {
+        method: "POST",
+        body: { reason: "Security Hardening: Missing device fingerprint" }
+      });
+      if (!res.ok) throw res.error;
+      alert(`Success: ${res.data.count} users banned. ${res.data.message}`);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || "Failed to mass ban no-device users");
     }
   };
 
@@ -488,41 +597,116 @@ export default function AdminPage() {
               </p>
             </div>
 
-            {/* SEARCH BAR */}
-            <div className="relative w-full md:w-96 group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <SearchIcon className="h-4 w-4 text-zinc-500 group-focus-within:text-[#2547D0] transition-colors" />
+            {/* SEARCH BAR & TABS */}
+            <div className="flex flex-col gap-4 w-full md:w-auto">
+              <div className="flex items-center gap-2 p-1 bg-zinc-900/50 rounded-lg border border-white/5 self-start">
+                {[
+                  { id: 'users', label: 'All Users', icon: Users },
+                  { id: 'under_review', label: 'Under Review', icon: AlertTriangle },
+                  { id: 'duplicates', label: 'Duplicates', icon: Users },
+                  { id: 'no_device', label: 'No Device', icon: Shield },
+                  { id: 'banned', label: 'Terminated', icon: Lock },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as TabType); setPage(1); }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
+                      activeTab === tab.id
+                        ? "bg-[#2547D0] text-white shadow-lg shadow-[#2547D0]/20"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                    }`}
+                  >
+                    <tab.icon size={12} />
+                    {tab.label}
+                  </button>
+                ))}
               </div>
-              <input
-                type="text"
-                placeholder="Search by username, email, or ID..."
-                className="block w-full pl-10 pr-10 py-2.5 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-[#2547D0] focus:border-[#2547D0] transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+
+              {activeTab === 'no_device' && (
+                <button
+                  onClick={() => {
+                    if (confirm("MASS BAN AUTHORIZATION:\n\nThis will permanently ban ALL accounts listed here that are missing device fingerprints.\n\nContinue?")) {
+                      handleBanNoDevice();
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all self-start animate-fade-in"
                 >
-                  <X className="h-4 w-4 text-zinc-500 hover:text-white transition-colors" />
+                  <AlertTriangle size={12} />
+                  <span>Mass Ban All (No Device)</span>
                 </button>
               )}
+
+              {/* INACTIVE FILTER (Only for All Users) */}
+              {activeTab === 'users' && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/50 rounded-lg border border-white/5 animate-fade-in">
+                   <Clock size={14} className="text-zinc-500" />
+                   <span className="mono text-[10px] text-zinc-500 uppercase tracking-widest whitespace-nowrap">Inactive &gt;</span>
+                   <input 
+                     type="number" 
+                     min="1"
+                     placeholder="Days"
+                     value={inactiveDays} 
+                     onChange={(e) => {
+                       const val = e.target.value ? parseInt(e.target.value) : "";
+                       setInactiveDays(val);
+                       setPage(1);
+                     }}
+                     className="w-12 bg-transparent border-b border-zinc-700 text-xs text-white text-center focus:outline-none focus:border-[#2547D0] mono"
+                   />
+                   <span className="mono text-[10px] text-zinc-500 uppercase tracking-widest">Days</span>
+                </div>
+              )}
+
+              <div className="relative w-full md:w-96 group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <SearchIcon className="h-4 w-4 text-zinc-500 group-focus-within:text-[#2547D0] transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by username, email, or ID..."
+                  className="block w-full pl-10 pr-10 py-2.5 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-[#2547D0] focus:border-[#2547D0] transition-all"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery("")}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <X className="h-4 w-4 text-zinc-500 hover:text-white transition-colors" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="glass-panel rounded-2xl overflow-hidden shadow-2xl">
-            <UserTable
-              users={users}
-              loading={loading}
-              currentUserId={currentUserId}
-              currentUserRole={currentUserRole}
-              onBan={handleBan}
-              onUnban={handleUnban}
-              onPromote={handlePromote}
-              onDemote={handleDemote}
-              onPromoteSuper={handlePromoteSuper}
-            />
+            {activeTab === 'banned' ? (
+              <BannedIdentities
+                users={users}
+                loading={loading}
+                onUnban={handleUnban}
+                onShowHistory={(u: any) => setHistoryUser({ id: u.id, username: u.username })}
+              />
+            ) : (
+              <UserTable
+                users={users}
+                loading={loading}
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole}
+                activeTab={activeTab}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSort={handleSort}
+                onBan={handleBan}
+                onUnban={handleUnban}
+                onBanDevice={handleBanDevice}
+                onDemote={handleDemote}
+                onPromoteSuper={handlePromoteSuper}
+                onShowHistory={(u: any) => setHistoryUser({ id: u.id, username: u.username })}
+                onBanNoDevice={handleBanNoDevice}
+              />
+            )}
             
             {/* PAGINATION */}
             <div className="px-6 py-4 border-t border-white/5 bg-zinc-900/40 flex items-center justify-between">
@@ -560,6 +744,13 @@ export default function AdminPage() {
             fetchData();
           }}
           iconOptions={ICON_OPTIONS}
+        />
+      )}
+      {historyUser && (
+        <PXPHistoryModal
+          userId={historyUser.id}
+          username={historyUser.username}
+          onClose={() => setHistoryUser(null)}
         />
       )}
     </WaitlistLayout>
@@ -666,7 +857,7 @@ function TaskCard({ task, iconOptions, onToggle, onEdit, onDelete }: {
   );
 }
 
-function UserTable({ users, loading, currentUserId, currentUserRole, onBan, onUnban, onPromote, onDemote, onPromoteSuper }: any) {
+function UserTable({ users, loading, currentUserId, currentUserRole, activeTab, sortBy, sortDir, onSort, onBan, onBanDevice, onBanNoDevice, onUnban, onPromote, onDemote, onPromoteSuper, onShowHistory }: any) {
   if (loading) {
     return (
        <div className="p-12 text-center">
@@ -675,16 +866,47 @@ function UserTable({ users, loading, currentUserId, currentUserRole, onBan, onUn
     );
   }
 
+  const SortHeader = ({ field, label, align = "left" }: { field: string, label: string, align?: "left" | "right" }) => (
+    <th 
+      onClick={() => onSort(field)}
+      className={`px-6 py-4 text-${align} mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal cursor-pointer hover:text-white transition-colors group select-none`}
+    >
+      <div className={`flex items-center gap-1.5 ${align === "right" ? "justify-end" : ""}`}>
+        {label}
+        {sortBy === field && (
+          <div className={`transition-transform duration-200 ${sortDir === 'asc' ? 'rotate-180' : ''}`}>
+             <span className="text-[#2547D0]">▼</span>
+          </div>
+        )}
+      </div>
+    </th>
+  );
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="bg-zinc-900/60 border-b border-white/5">
-            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Identity</th>
-            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Metrics</th>
-            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Role</th>
-            <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Status</th>
-            <th className="px-6 py-4 text-right mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Control</th>
+            {activeTab === 'duplicates' ? (
+              <>
+                <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Hardware Signature</th>
+                <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Density</th>
+                <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Linked Identities</th>
+                <th className="px-6 py-4 text-right mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Neutralization</th>
+              </>
+            ) : (
+              <>
+                <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Identity</th>
+                <SortHeader field="pxpBalance" label="PXP Balance" /> 
+                {activeTab === 'under_review' ? (
+                  <th className="px-6 py-4 text-left mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Review Ends In</th>
+                ) : (
+                  <SortHeader field="dailyStreak" label="Streak" />
+                )}
+                <SortHeader field="createdAt" label="Role / Status" />
+                <th className="px-6 py-4 text-right mono text-[10px] text-zinc-500 uppercase tracking-widest font-normal">Control</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
@@ -697,89 +919,180 @@ function UserTable({ users, loading, currentUserId, currentUserRole, onBan, onUn
             </tr>
           ) : (
             users.map((user: AdminUser) => (
-              <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
-                      {user.username.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-white font-bold text-sm">{user.username}</p>
-                      <p className="mono text-[10px] text-zinc-600">{user.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="space-y-1">
-                     <div className="flex items-center gap-2">
-                        <Coins size={12} className="text-amber-500" />
-                        <span className="mono text-xs font-bold text-white">{user.pxpBalance.toLocaleString()}</span>
-                     </div>
-                     <div className="flex items-center gap-2">
-                        <Activity size={12} className="text-zinc-600" />
-                        <span className="mono text-[10px] text-zinc-600">Streak: {user.dailyStreak || 0}</span>
-                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-md mono text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${
-                    user.role === "SUPERADMIN"
-                      ? "bg-[#2547D0] text-white shadow shadow-[#2547D0]/40"
-                      : user.role === "ADMIN"
-                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                      : "bg-zinc-800 text-zinc-400 border border-zinc-700"
-                  }`}>
-                    {user.role === "SUPERADMIN" && <Crown size={10} />}
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  {user.isBanned ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">
-                      <Lock size={10} /> BANNED
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold">
-                      <CheckCircle size={10} /> ACTIVE
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                    {/* User Actions */}
-                    {currentUserRole === "SUPERADMIN" && currentUserId !== user.id && (
-                       <>
-                         <button
-                           onClick={() => user.role === 'USER' ? onPromote(user.id) : onDemote(user.id)}
-                           className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
-                           title={user.role === 'USER' ? "Promote to Admin" : "Demote"}
-                          >
-                           {user.role === 'USER' ? <ArrowUpRight size={14} /> : <ArrowUpRight size={14} className="rotate-180" />}
-                          </button>
-                          
-                          {user.role === 'ADMIN' && (
-                            <button
-                              onClick={() => onPromoteSuper(user.id)}
-                              className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-amber-500 transition-colors"
-                              title="Promote to Superadmin"
-                            >
-                              <Crown size={14} className="group-hover:text-amber-500 transition-colors" />
-                            </button>
+              <tr key={user.id || user.deviceId} className="hover:bg-white/[0.02] transition-colors group">
+                {activeTab === 'duplicates' ? (
+                   // --- DUPLICATES ROW ---
+                   <>
+                     <td className="px-6 py-4">
+                       <div className="flex items-center gap-2">
+                         <Shield className="w-4 h-4 text-zinc-500" />
+                         <span className="mono text-xs text-zinc-300 font-bold">{user.deviceId || "Unknown Device"}</span>
+                       </div>
+                     </td>
+                     <td className="px-6 py-4">
+                        <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-xs font-bold border border-red-500/20">
+                          {user.count} Identit{user.count === 1 ? 'y' : 'ies'}
+                        </span>
+                     </td>
+                     <td className="px-6 py-4">
+                       <div className="flex flex-wrap gap-1.5 max-w-md">
+                         {user.usernames?.map((u, i) => (
+                           <div key={i} className="flex flex-col gap-0.5">
+                             <span className={`px-2 py-0.5 rounded text-[10px] border ${
+                               i === 0 
+                                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" 
+                                 : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                             }`}>
+                               {u} {i === 0 && " (Original)"}
+                             </span>
+                           </div>
+                         ))}
+                       </div>
+                     </td>
+                     <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => {
+                            if (confirm(`MASS BAN AUTHORIZATION:\n\nThis will ban ${user.count! - 1} duplicate accounts on this device.\n\nThe ORIGINAL account (${user.usernames![0]}) will be SPARED.\n\nContinue?`)) {
+                              onBanDevice(user.deviceId!);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-[1.02] shadow-sm shadow-red-500/10"
+                        >
+                          Clean Device
+                        </button>
+                     </td>
+                   </>
+                ) : (
+                   // --- STANDARD USER ROW ---
+                  <>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center text-xs font-black text-zinc-400 border border-white/5 shadow-inner">
+                            {user.username ? user.username.slice(0, 2).toUpperCase() : "??"}
+                          </div>
+                          {user.isBanned && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center border-2 border-zinc-950">
+                              <Lock size={8} className="text-white" />
+                            </div>
                           )}
-                       </>
-                    )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-white font-bold text-sm tracking-tight">{user.username}</p>
+                          <p className="mono text-[10px] text-zinc-500 font-medium">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button 
+                         onClick={() => onShowHistory(user)}
+                         className="flex items-center gap-2 hover:bg-white/5 p-1 rounded transition-colors group/pxp text-left"
+                      >
+                         <Coins size={12} className="text-amber-500" />
+                         <span className="mono text-xs font-bold text-white group-hover/pxp:underline decoration-[#2547D0]">{(user.pxpBalance || 0).toLocaleString()}</span>
+                      </button>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                        {activeTab === 'under_review' ? (
+                          <div className="flex items-center gap-2 text-amber-500">
+                            <Clock size={12} />
+                            <span className="mono text-xs">
+                              {user.reviewEndsAt 
+                                ? Math.max(0, Math.ceil((new Date(user.reviewEndsAt).getTime() - Date.now()) / 60000)) + " mins" 
+                                : "N/A"}
+                            </span>
+                          </div>
+                        ) : (
+                           <div className="flex items-center gap-2">
+                              <Activity size={12} className="text-zinc-600" />
+                              <span className="mono text-[10px] text-zinc-600">{user.dailyStreak || 0} Days</span>
+                           </div>
+                        )}
+                    </td>
 
-                    {user.isBanned ? (
-                      <button onClick={() => onUnban(user.id)} className="p-2 bg-zinc-800 hover:bg-emerald-900/50 rounded-lg text-zinc-400 hover:text-emerald-400 transition-colors" title="Unban">
-                        <Unlock size={14} />
-                      </button>
-                    ) : (
-                      <button onClick={() => onBan(user.id)} className="p-2 bg-zinc-800 hover:bg-red-900/50 rounded-lg text-zinc-400 hover:text-red-400 transition-colors" title="Ban">
-                        <Lock size={14} />
-                      </button>
-                    )}
-                  </div>
-                </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span className={`px-2 py-0.5 rounded mono text-[9px] font-black uppercase tracking-[0.1em] inline-flex items-center gap-1 ${
+                          user.role === "SUPERADMIN"
+                            ? "bg-[#2547D0] text-white shadow-[0_0_10px_rgba(37,71,208,0.3)]"
+                            : user.role === "ADMIN"
+                            ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                            : "bg-zinc-800/80 text-zinc-400 border border-white/5"
+                        }`}>
+                          {user.role === "SUPERADMIN" && <Crown size={9} />}
+                          {user.role || "USER"}
+                        </span>
+                        
+                        {user.isBanned ? (
+                          <span className="inline-flex items-center gap-1.5 text-red-500 text-[9px] font-black uppercase tracking-wider bg-red-500/5 px-1.5 py-0.5 rounded border border-red-500/10">
+                            <Lock size={10} /> BANNED
+                          </span>
+                        ) : user.accountStatus === 'UNDER_REVIEW' ? (
+                          <span className="inline-flex items-center gap-1.5 text-amber-500 text-[9px] font-black uppercase tracking-wider bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">
+                            <FileText size={10} /> REVIEWING
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-emerald-500 text-[9px] font-black uppercase tracking-wider bg-emerald-500/5 px-1.5 py-0.5 rounded border border-emerald-500/10">
+                            <CheckCircle size={10} /> ACTIVE
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                        {/* User Actions - Only Superadmin can manage roles */}
+                        {currentUserRole === "SUPERADMIN" && currentUserId !== user.id && (
+                           <>
+                             {/* Promote USER to ADMIN */}
+                             {user.role === 'USER' && (
+                               <button
+                                 onClick={() => onPromote(user.id)}
+                                 className="p-2 bg-zinc-800 hover:bg-[#2547D0]/20 rounded-lg text-zinc-400 hover:text-[#2547D0] transition-colors"
+                                 title="Promote to Admin"
+                                >
+                                 <ArrowUpRight size={14} />
+                                </button>
+                             )}
+
+                             {/* Demote ADMIN to USER */}
+                             {user.role === 'ADMIN' && (
+                               <button
+                                 onClick={() => onDemote(user.id)}
+                                 className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                                 title="Demote to User"
+                                >
+                                 <ArrowUpRight size={14} className="rotate-180" />
+                                </button>
+                             )}
+                              
+                             {/* Promote ADMIN to SUPERADMIN */}
+                             {user.role === 'ADMIN' && (
+                                <button
+                                  onClick={() => onPromoteSuper(user.id)}
+                                  className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-amber-500 transition-colors"
+                                  title="Promote to Superadmin"
+                                >
+                                  <Crown size={14} className="group-hover:text-amber-500 transition-colors" />
+                                </button>
+                             )}
+                           </>
+                        )}
+
+                        {user.isBanned ? (
+                          <button onClick={() => onUnban(user.id)} className="p-2 bg-zinc-800 hover:bg-emerald-900/50 rounded-lg text-zinc-400 hover:text-emerald-400 transition-colors" title="Unban">
+                            <Unlock size={14} />
+                          </button>
+                        ) : (
+                          <button onClick={() => onBan(user.id)} className="p-2 bg-zinc-800 hover:bg-red-900/50 rounded-lg text-zinc-400 hover:text-red-400 transition-colors" title="Ban">
+                            <Lock size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </>
+                )}
               </tr>
             ))
           )}
@@ -787,7 +1100,9 @@ function UserTable({ users, loading, currentUserId, currentUserRole, onBan, onUn
       </table>
     </div>
   );
+
 }
+
 
 function TaskModal({ task, onClose, onSave, iconOptions }: {
   task: Task | null;

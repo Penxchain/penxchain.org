@@ -11,6 +11,17 @@ import {
   listTasksHandler,
   updateTaskHandler,
   deleteTaskHandler,
+  getUnderReviewUsersHandler,
+  getPenaltyBatchHandler,
+  forceSettleHandler,
+  cancelPenaltyHandler,
+  extendReviewHandler,
+  getDeviceDuplicatesHandler,
+  getNoDeviceUsersHandler,
+  banDeviceUsersHandler,
+  banNoDeviceUsersHandler,
+  getBannedUsersHandler,
+  getUserPXPHistoryHandler,
 } from "./controller";
 import { requireAdmin, requireSuperAdmin } from "./middleware";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -35,6 +46,21 @@ export async function adminRoutes(app: FastifyInstance) {
   );
 
   server.get(
+    "/users/banned",
+    {
+      schema: {
+        querystring: z.object({
+          page: z.coerce.number().default(1),
+          limit: z.coerce.number().default(20),
+        }),
+        tags: ["Admin"],
+        summary: "List banned users",
+      },
+    },
+    getBannedUsersHandler,
+  );
+
+  server.get(
     "/users",
     {
       schema: {
@@ -42,12 +68,30 @@ export async function adminRoutes(app: FastifyInstance) {
           page: z.coerce.number().default(1),
           limit: z.coerce.number().default(20),
           search: z.string().optional(),
+          sortBy: z.enum(['pxpBalance', 'createdAt', 'dailyStreak']).optional(),
+          sortDir: z.enum(['asc', 'desc']).default('desc'),
+          status: z.enum(['ACTIVE', 'BANNED', 'UNDER_REVIEW']).optional(),
+          inactiveDays: z.coerce.number().optional(),
         }),
         tags: ["Admin"],
         summary: "List users",
       },
     },
     getUsersHandler,
+  );
+
+  server.get(
+    "/users/:id/history",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Get user PXP history",
+        params: z.object({
+          id: z.string().uuid(),
+        }),
+      },
+    },
+    getUserPXPHistoryHandler,
   );
 
   // Task management for waitlist
@@ -169,5 +213,138 @@ export async function adminRoutes(app: FastifyInstance) {
       preHandler: [requireSuperAdmin],
     },
     demoteUserHandler,
+  );
+
+  // ===== PENALTY MANAGEMENT ROUTES =====
+
+  server.get(
+    "/penalty/under-review",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Get all users under review",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireAdmin],
+    },
+    getUnderReviewUsersHandler,
+  );
+
+  server.get(
+    "/penalty/batch/:id",
+    {
+      schema: {
+        params: z.object({ id: z.string() }),
+        tags: ["Admin"],
+        summary: "Get penalty batch details",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireAdmin],
+    },
+    getPenaltyBatchHandler,
+  );
+
+  server.post(
+    "/penalty/batch/:id/settle",
+    {
+      schema: {
+        params: z.object({ id: z.string() }),
+        tags: ["Admin"],
+        summary: "Force settle a penalty batch",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireSuperAdmin],
+    },
+    forceSettleHandler,
+  );
+
+  server.post(
+    "/penalty/batch/:id/cancel",
+    {
+      schema: {
+        params: z.object({ id: z.string() }),
+        tags: ["Admin"],
+        summary: "Cancel a penalty batch",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireSuperAdmin],
+    },
+    cancelPenaltyHandler,
+  );
+
+  server.post(
+    "/penalty/batch/:id/extend",
+    {
+      schema: {
+        params: z.object({ id: z.string() }),
+        body: z.object({ minutes: z.number().min(1).max(1440) }),
+        tags: ["Admin"],
+        summary: "Extend a penalty review window",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireSuperAdmin],
+    },
+    extendReviewHandler,
+  );
+
+  // ===== DEVICE FILTER ROUTES =====
+
+  server.get(
+    "/devices/duplicates",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Find users sharing the same deviceId",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireAdmin],
+    },
+    getDeviceDuplicatesHandler,
+  );
+
+  server.get(
+    "/devices/missing",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Find users without a deviceId",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireAdmin],
+    },
+    getNoDeviceUsersHandler,
+  );
+
+  server.post(
+    "/devices/:deviceId/ban",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Mass ban users by Device ID",
+        params: z.object({
+          deviceId: z.string(),
+        }),
+        body: z.object({
+          reason: z.string().optional(),
+        }),
+      },
+      preHandler: [requireAdmin],
+    },
+    banDeviceUsersHandler,
+  );
+
+  server.post(
+    "/devices/no-device/ban",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Mass ban users without Device ID",
+        body: z.object({
+          reason: z.string().optional(),
+        }),
+      },
+      preHandler: [requireAdmin],
+    },
+    banNoDeviceUsersHandler,
   );
 }

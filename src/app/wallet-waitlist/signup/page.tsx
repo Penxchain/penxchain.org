@@ -47,9 +47,11 @@ function SignupContent() {
   >("idle");
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [hasReadProtocols, setHasReadProtocols] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isUnderReview, setIsUnderReview] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{
     referrer: string;
     points: number;
@@ -88,6 +90,7 @@ function SignupContent() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsUnderReview(false);
     if (!agreedToTerms) {
       setError("Acknowledge the protocol terms to proceed");
       return;
@@ -135,6 +138,9 @@ function SignupContent() {
         router.push("/wallet-waitlist/dashboard");
       }
     } else {
+      if (result.isUnderReview) {
+        setIsUnderReview(true);
+      }
       setError(result.error || "Identity initialization failed");
       setLoading(false);
     }
@@ -394,7 +400,13 @@ function SignupContent() {
                     id="terms"
                     type="checkbox"
                     checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    onChange={(e) => {
+                      if (!hasReadProtocols) {
+                        setError("Identity initialization requires full protocol acknowledgement. Please read the Legal Protocols first.");
+                        return;
+                      }
+                      setAgreedToTerms(e.target.checked);
+                    }}
                     className="peer sr-only"
                   />
                   <div className="w-4 h-4 border border-white/20 rounded bg-white/5 peer-checked:bg-[#2547D0] peer-checked:border-[#2547D0] transition-all" />
@@ -407,7 +419,10 @@ function SignupContent() {
                   agree to the
                   <button
                     type="button"
-                    onClick={() => setIsLegalModalOpen(true)}
+                    onClick={() => {
+                      setError(""); // Clear error when opening modal
+                      setIsLegalModalOpen(true);
+                    }}
                     className="text-white hover:text-[#2547D0] transition-colors px-1 underline underline-offset-4 cursor-pointer"
                   >
                     Legal Protocols
@@ -416,16 +431,24 @@ function SignupContent() {
                 </span>
               </label>
 
-              {/* Error Box */}
+              {/* Error / Under Review Box */}
               <AnimatePresence>
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs"
+                    className={`flex items-start gap-3 p-4 border rounded-xl text-xs ${
+                      isUnderReview
+                        ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                    }`}
                   >
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {isUnderReview ? (
+                      <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    )}
                     <span>{error}</span>
                   </motion.div>
                 )}
@@ -656,6 +679,11 @@ function SignupContent() {
       <LegalProtocolsModal 
         isOpen={isLegalModalOpen} 
         onClose={() => setIsLegalModalOpen(false)} 
+        onAccept={() => {
+          setHasReadProtocols(true);
+          setAgreedToTerms(true);
+          if (error.includes("Legal Protocols")) setError("");
+        }}
       />
     </div>
   );

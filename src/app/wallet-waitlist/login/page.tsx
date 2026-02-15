@@ -20,10 +20,12 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isUnderReview, setIsUnderReview] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsUnderReview(false);
     setLoading(true);
 
     // Execute reCAPTCHA
@@ -41,6 +43,9 @@ function LoginContent() {
     if (result.success) {
       router.push('/wallet-waitlist/dashboard');
     } else {
+      if (result.isUnderReview) {
+        setIsUnderReview(true);
+      }
       setError(result.error || 'Identity initialization failed');
       setLoading(false);
     }
@@ -153,16 +158,24 @@ function LoginContent() {
                 </div>
               </div>
 
-              {/* Error Box */}
+              {/* Error / Under Review Box */}
               <AnimatePresence>
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs"
+                    className={`flex items-start gap-3 p-4 border rounded-xl text-xs ${
+                      isUnderReview
+                        ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                    }`}
                   >
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {isUnderReview ? (
+                      <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    )}
                     <span>{error}</span>
                   </motion.div>
                 )}

@@ -16,35 +16,57 @@ export async function validateReferralCode(code: string): Promise<boolean> {
   }
 }
 
+import FingerprintJS from "@fingerprintjs/fingerprintjs";
+
 const STORAGE_KEY = "penxchain_waitlist_user";
 const DEVICE_KEY = "penxchain_device_id";
 
-function getOrCreateDeviceId(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  try {
-    const stored = localStorage.getItem(DEVICE_KEY); // string | null
-    if (stored && stored.length > 5) return stored;
+// FingerprintJS agent (lazy singleton)
+let fpPromise: Promise<import("@fingerprintjs/fingerprintjs").Agent> | null = null;
 
-    // Prefer secure uuid when available
-    let id: string;
-    if (
-      typeof crypto !== "undefined" &&
-      typeof (crypto as any).randomUUID === "function"
-    ) {
-      id = (crypto as any).randomUUID();
-    } else {
-      id = `dev-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
-    }
-
-    try {
-      localStorage.setItem(DEVICE_KEY, id);
-    } catch (e) {
-      // ignore storage errors
-    }
-    return id;
-  } catch (e) {
-    return undefined;
+function getFpAgent() {
+  if (!fpPromise && typeof window !== "undefined") {
+    fpPromise = FingerprintJS.load();
   }
+  return fpPromise;
+}
+
+/**
+ * Get a hardware-based device fingerprint using FingerprintJS.
+ * Falls back to a cached value if FingerprintJS fails.
+ * Returns undefined only on SSR.
+ */
+async function getDeviceFingerprint(): Promise<string | undefined> {
+  if (typeof window === "undefined") return undefined;
+
+  try {
+    const agent = await getFpAgent();
+    if (agent) {
+      const result = await agent.get();
+      const visitorId = result.visitorId;
+
+      // Cache in localStorage for fallback
+      try {
+        localStorage.setItem(DEVICE_KEY, visitorId);
+      } catch {
+        // Storage full — non-fatal
+      }
+      return visitorId;
+    }
+  } catch (err) {
+    console.warn("[AUTH] FingerprintJS failed, using cached fallback:", err);
+  }
+
+  // Fallback: use cached value from a previous successful fingerprint
+  try {
+    const cached = localStorage.getItem(DEVICE_KEY);
+    if (cached && cached.length > 5) return cached;
+  } catch {
+    // ignore
+  }
+
+  // Last resort: no fingerprint available
+  return undefined;
 }
 
 // Helper to save session
@@ -112,7 +134,8 @@ export async function login(
 
     if (!result.ok) {
       console.error("[AUTH] Login failed:", result.error.message);
-      return { success: false, error: result.error.message };
+      const isUnderReview = result.status === 423;
+      return { success: false, error: result.error.message, isUnderReview };
     }
 
     // Normalize backend response to frontend User interface
@@ -202,7 +225,7 @@ export async function signup(
   recaptchaToken?: string, // Added for bot protection
 ): Promise<AuthResponse> {
   try {
-    const deviceId = getOrCreateDeviceId();
+    const deviceId = await getDeviceFingerprint();
     const result = await apiRequest<any>("/auth/signup", {
       method: "POST",
       body: {
@@ -217,7 +240,8 @@ export async function signup(
 
     if (!result.ok) {
       console.error("[AUTH] Signup failed:", result.error.message);
-      return { success: false, error: result.error.message };
+      const isUnderReview = result.status === 423;
+      return { success: false, error: result.error.message, isUnderReview };
     }
 
     // Normalize backend response to frontend User interface

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ConflictError = exports.NotFoundError = exports.ForbiddenError = exports.InvalidCredentialsError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
+exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ConflictError = exports.NotFoundError = exports.AccountLockedError = exports.ForbiddenError = exports.InvalidCredentialsError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
 exports.wrapDatabaseOperation = wrapDatabaseOperation;
 class AppError extends Error {
     statusCode;
@@ -38,6 +38,25 @@ class ForbiddenError extends AppError {
     }
 }
 exports.ForbiddenError = ForbiddenError;
+class AccountLockedError extends AppError {
+    constructor(reviewEndsAt) {
+        let timeMsg = "Please try again later.";
+        if (reviewEndsAt) {
+            const msLeft = new Date(reviewEndsAt).getTime() - Date.now();
+            if (msLeft > 0) {
+                const minsLeft = Math.ceil(msLeft / 60000);
+                timeMsg = minsLeft > 1
+                    ? `Please try again in ${minsLeft} minutes.`
+                    : "Please try again in about a minute.";
+            }
+            else {
+                timeMsg = "Your review period has ended. Please try logging in again.";
+            }
+        }
+        super(`Your account is currently under review due to referral activity. ${timeMsg}`, 423);
+    }
+}
+exports.AccountLockedError = AccountLockedError;
 class NotFoundError extends AppError {
     constructor(message = "Resource not found") {
         super(message, 404);

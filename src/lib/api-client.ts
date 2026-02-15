@@ -96,6 +96,10 @@ function getUserFriendlyMessage(message: string, status?: number): string {
     if (message.includes("device")) return message;
     return "This resource already exists.";
   }
+  if (status === 423) {
+    // Account under review — pass through the backend's dynamic message
+    return message;
+  }
   if (status === 404) return "The requested resource was not found.";
   if (status === 429)
     return "Too many requests. Please wait a moment and try again.";

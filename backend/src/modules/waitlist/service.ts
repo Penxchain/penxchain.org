@@ -187,17 +187,81 @@ export async function completeTask(userId: string, taskId: string) {
       });
     }
 
-    // 4. Update User Points
+    // 4. Update User Points + Task Counter
     const updatedUser = await tx.user.update({
       where: { id: userId },
       data: {
         pxpBalance: { increment: task.points },
-      },
-      select: { id: true, pxpBalance: true },
+        tasksCompletedCount: { increment: 1 },
+      } as any,
+      select: { id: true, pxpBalance: true, tasksCompletedCount: true, referredById: true, referralRewarded: true } as any,
     });
 
     // 5. Update daily streak
     await updateDailyStreak(userId, tx);
+
+    // 5.5 Deferred Referral Reward — credit referrer after referred user completes 3 tasks
+    const REFERRAL_TASK_THRESHOLD = 3;
+    const REFERRER_BONUS = 150;
+    if (
+      updatedUser.tasksCompletedCount === REFERRAL_TASK_THRESHOLD &&
+      updatedUser.referredById &&
+      updatedUser.newUserBonusGranted // Signup bonus was granted (confirms valid referral)
+    ) {
+      // Idempotency guard: use DB field, NOT notifications
+      // Re-read to get current referrerBonusGranted (avoid stale data from updatedUser)
+      const referralCheck = await (tx.user as any).findUnique({
+        where: { id: userId },
+        select: { referrerBonusGranted: true },
+      });
+
+      if (referralCheck && !referralCheck.referrerBonusGranted) {
+        // Credit referrer
+        await tx.user.update({
+          where: { id: updatedUser.referredById },
+          data: { pxpBalance: { increment: REFERRER_BONUS } },
+        });
+
+        // Mark THIS user's referrer bonus as granted (idempotency in core state)
+        await (tx.user as any).update({
+          where: { id: userId },
+          data: { referrerBonusGranted: true },
+        });
+
+        // Update referrer's leaderboard score
+        if (redisClient) {
+          try {
+            const referrer = await tx.user.findUnique({
+              where: { id: updatedUser.referredById },
+              select: { pxpBalance: true },
+            });
+            if (referrer) {
+              await redisClient.zAdd("waitlist:leaderboard", {
+                score: referrer.pxpBalance,
+                value: updatedUser.referredById,
+              });
+            }
+          } catch (e) {
+            console.warn("[WAITLIST] Failed to update referrer Redis score:", e);
+          }
+        }
+
+        // Notification reflects state, does NOT define it (best-effort)
+        try {
+          await (tx as any).notification.create({
+            data: {
+              userId: updatedUser.referredById,
+              type: "REFERRAL_REWARD_CREDITED",
+              title: "Referral Reward Unlocked!",
+              message: `Your referral has completed ${REFERRAL_TASK_THRESHOLD} tasks. You've earned +${REFERRER_BONUS} PXP!`,
+              metadata: { referredUserId: userId, amount: REFERRER_BONUS },
+            },
+          });
+        } catch (notifErr: any) {
+          console.warn("[WAITLIST] Referral reward notification failed (non-fatal):", notifErr?.message);
+        }
+      }
+    }
 
     // 6. Update Redis leaderboard if available (best-effort)
     try {

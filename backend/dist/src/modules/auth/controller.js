@@ -15,7 +15,7 @@ async function signupHandler(request, reply) {
             }
         }
         const user = await (0, service_1.createUser)(request.body);
-        const token = request.server.jwt.sign({ id: user.id, role: user.role });
+        const token = request.server.jwt.sign({ id: user.id, role: user.role, tokenVersion: 0 });
         const { password, ...safeUser } = user;
         return reply.status(201).send({ success: true, ...safeUser, token });
     }
@@ -33,7 +33,7 @@ async function checkReferralHandler(request, reply) {
 async function loginHandler(request, reply) {
     try {
         const user = await (0, service_1.loginUser)(request.body);
-        const token = request.server.jwt.sign({ id: user.id, role: user.role });
+        const token = request.server.jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion || 0 });
         const { password, ...safeUser } = user;
         return reply.status(200).send({ success: true, ...safeUser, token });
     }

@@ -61,6 +61,7 @@ export interface AuthResponse {
   wasReferred?: boolean;
   rewardsApplied?: { newUser: number; referrer: number } | null;
   error?: string;
+  isUnderReview?: boolean; // HTTP 423 — account under review
 }
 
 export type TimePeriod = "all" | "week" | "month";

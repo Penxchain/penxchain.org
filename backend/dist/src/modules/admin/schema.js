@@ -9,6 +9,9 @@ exports.querySchema = zod_1.default.object({
     page: zod_1.default.coerce.number().default(1),
     limit: zod_1.default.coerce.number().default(20),
     search: zod_1.default.string().optional(),
+    sortBy: zod_1.default.enum(['pxpBalance', 'createdAt', 'dailyStreak']).optional(),
+    sortDir: zod_1.default.enum(['asc', 'desc']).default('desc'),
+    status: zod_1.default.enum(['ACTIVE', 'BANNED', 'UNDER_REVIEW']).optional(),
 });
 exports.createTaskSchema = zod_1.default.object({
     title: zod_1.default.string().min(3),

@@ -145,10 +145,62 @@ async function completeTask(userId, taskId) {
             where: { id: userId },
             data: {
                 pxpBalance: { increment: task.points },
+                tasksCompletedCount: { increment: 1 },
             },
-            select: { id: true, pxpBalance: true },
+            select: { id: true, pxpBalance: true, tasksCompletedCount: true, referredById: true, referralRewarded: true },
         });
         await updateDailyStreak(userId, tx);
+        const REFERRAL_TASK_THRESHOLD = 3;
+        const REFERRER_BONUS = 150;
+        if (updatedUser.tasksCompletedCount === REFERRAL_TASK_THRESHOLD &&
+            updatedUser.referredById &&
+            updatedUser.newUserBonusGranted) {
+            const referralCheck = await tx.user.findUnique({
+                where: { id: userId },
+                select: { referrerBonusGranted: true },
+            });
+            if (referralCheck && !referralCheck.referrerBonusGranted) {
+                await tx.user.update({
+                    where: { id: updatedUser.referredById },
+                    data: { pxpBalance: { increment: REFERRER_BONUS } },
+                });
+                await tx.user.update({
+                    where: { id: userId },
+                    data: { referrerBonusGranted: true },
+                });
+                if (redis_1.redisClient) {
+                    try {
+                        const referrer = await tx.user.findUnique({
+                            where: { id: updatedUser.referredById },
+                            select: { pxpBalance: true },
+                        });
+                        if (referrer) {
+                            await redis_1.redisClient.zAdd("waitlist:leaderboard", {
+                                score: referrer.pxpBalance,
+                                value: updatedUser.referredById,
+                            });
+                        }
+                    }
+                    catch (e) {
+                        console.warn("[WAITLIST] Failed to update referrer Redis score:", e);
+                    }
+                }
+                try {
+                    await tx.notification.create({
+                        data: {
+                            userId: updatedUser.referredById,
+                            type: "REFERRAL_REWARD_CREDITED",
+                            title: "Referral Reward Unlocked!",
+                            message: `Your referral has completed ${REFERRAL_TASK_THRESHOLD} tasks. You've earned +${REFERRER_BONUS} PXP!`,
+                            metadata: { referredUserId: userId, amount: REFERRER_BONUS },
+                        },
+                    });
+                }
+                catch (notifErr) {
+                    console.warn("[WAITLIST] Referral reward notification failed (non-fatal):", notifErr?.message);
+                }
+            }
+        }
         try {
             if (redis_1.redisClient) {
                 const key = "waitlist:leaderboard";

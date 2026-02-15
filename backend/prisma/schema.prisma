@@ -23,16 +23,38 @@ model User {
   referredById     String?
   referralRewarded Boolean    @default(false)
   deviceId         String?
+
+  // === Split Referral Flags (Fix: explicit economic state) ===
+  newUserBonusGranted  Boolean  @default(false)  // Signup bonus (75 PXP) granted to this user
+  referrerBonusGranted Boolean  @default(false)  // Deferred referrer bonus (150 PXP) credited to referrer for THIS user
   lastBonusClaim   DateTime?
+
+  // === Hardening Fields ===
+  accountStatus      String   @default("ACTIVE")    // ACTIVE | UNDER_REVIEW | BANNED
+  reviewEndsAt       DateTime?                       // When UNDER_REVIEW penalty window expires
+  tokenVersion       Int      @default(0)            // Increment to invalidate all sessions
+  tasksCompletedCount Int     @default(0)            // For deferred referral reward (credit after 3 tasks)
+
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   referredBy       User?      @relation("Referrals", fields: [referredById], references: [id])
   referrals        User[]     @relation("Referrals")
   tasks            UserTask[]
 
+  // Relations to new tables
+  penaltyBatches     ReferralPenaltyBatch[] @relation("ReferrerBatches")
+  penaltyEvents      ReferralPenaltyEvent[] @relation("ReferrerEvents")
+  bannedInEvents     ReferralPenaltyEvent[] @relation("BannedUserEvents")
+  adminAuditLogs     AdminAuditLog[]        @relation("AdminActions")
+  settledBatches     ReferralPenaltyBatch[] @relation("SettledByAdmin")
+  adminPenaltyEvents ReferralPenaltyEvent[] @relation("AdminPenaltyEvents")
+  notifications      Notification[]
+
   @@index([pxpBalance])
   @@index([createdAt])
   @@index([deviceId])
+  @@index([accountStatus])
+  @@index([reviewEndsAt])
 }
 
 model Task {
@@ -65,6 +87,80 @@ model UserTask {
   user        User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, taskId])
+}
+
+model ReferralPenaltyBatch {
+  id               String    @id @default(uuid())
+  referrerId       String
+  status           String    @default("PENDING")  // PENDING | SETTLING | SETTLED | FAILED | CANCELLED
+  totalPxpDeducted Int       @default(0)
+  bannedCount      Int       @default(0)
+  windowStartsAt   DateTime  @default(now())
+  windowEndsAt     DateTime
+  settledAt        DateTime?
+  settledByAdminId String?
+  notificationSent Boolean   @default(false)
+  appliedAt        DateTime?                    // Monotonic guard: NULL = balance not yet touched
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  referrer    User                   @relation("ReferrerBatches", fields: [referrerId], references: [id], onDelete: Cascade)
+  settledBy   User?                  @relation("SettledByAdmin", fields: [settledByAdminId], references: [id])
+  events      ReferralPenaltyEvent[]
+
+  @@index([referrerId])
+  @@index([status])
+  @@index([windowEndsAt])
+}
+
+model ReferralPenaltyEvent {
+  id             String   @id @default(uuid())
+  batchId        String
+  referrerId     String
+  bannedUserId   String   @unique  // Prevents double-deduction
+  bannedUsername  String?
+  banReason      String
+  pxpDeducted    Int      @default(150)
+  adminId        String
+  createdAt      DateTime @default(now())
+
+  batch    ReferralPenaltyBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  referrer User                @relation("ReferrerEvents", fields: [referrerId], references: [id], onDelete: Cascade)
+  banned   User                @relation("BannedUserEvents", fields: [bannedUserId], references: [id], onDelete: Cascade)
+  admin    User                @relation("AdminPenaltyEvents", fields: [adminId], references: [id])
+
+  @@index([batchId])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String
+  targetId   String?
+  targetType String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  admin User @relation("AdminActions", fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
 }
 
 enum Role {

@@ -15,6 +15,7 @@ const envSchema = z.object({
   SUPER_ADMIN_ID: z.string().min(1, "SUPER_ADMIN_ID is required"),
   PASSWORD_PEPPER: z.string().min(32, "PASSWORD_PEPPER must be at least 32 chars"),
   RECAPTCHA_SECRET_KEY: z.string().optional(), // reCAPTCHA v3 secret key
+  PENALTY_WINDOW_MINUTES: z.coerce.number().min(1).max(1440).default(30), // Referral penalty aggregation window
 });
 
 const _env = envSchema.safeParse(process.env);

@@ -7,14 +7,45 @@ import { X, Shield, Scale, Globe } from 'lucide-react';
 interface LegalProtocolsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAccept: () => void;
 }
 
 type Tab = 'terms' | 'privacy';
 
-const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClose }) => {
+const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClose, onAccept }) => {
   const [activeTab, setActiveTab] = useState<Tab>('terms');
+  const [scrolledTabs, setScrolledTabs] = useState<{ terms: boolean; privacy: boolean }>({
+    terms: false,
+    privacy: false,
+  });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Check scroll position
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    // Buffer of 20px to account for rounding/browser differences
+    const isBottom = scrollTop + clientHeight >= scrollHeight - 20;
+
+    if (isBottom && !scrolledTabs[activeTab]) {
+      setScrolledTabs((prev) => ({ ...prev, [activeTab]: true }));
+    }
+  };
+
+  // Reset scroll and check height on tab change
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTo({ top: 0, behavior: 'auto' });
+      // If content fits without scrolling, mark as read immediately
+      if (el.scrollHeight <= el.clientHeight) {
+        setScrolledTabs((prev) => ({ ...prev, [activeTab]: true }));
+      }
+    }
+  }, [activeTab]);
 
   // Scroll Lock matching Admin Page implementation
   useEffect(() => {
@@ -116,7 +147,7 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed inset-x-4 top-[5%] md:top-[10%] md:inset-x-auto md:w-full md:max-w-3xl md:h-[80vh] z-[101] bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden self-center justify-self-center mx-auto outline-none overscroll-contain"
+            className="fixed inset-x-4 top-[5%] bottom-[5%] md:bottom-auto md:top-[10%] md:inset-x-auto md:w-full md:max-w-3xl h-[90vh] md:h-[80vh] z-[101] bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden self-center justify-self-center mx-auto outline-none overscroll-contain"
           >
             {/* Header */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
@@ -175,9 +206,10 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
             {/* Content Area with Custom Scrollbar */}
             <div 
               ref={scrollContainerRef}
-              className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar overscroll-contain outline-none"
+              className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar overscroll-contain outline-none touch-pan-y"
               tabIndex={0}
               onWheel={(e) => e.stopPropagation()}
+              onScroll={handleScroll}
             >
               {activeTab === 'terms' ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -296,10 +328,18 @@ const LegalProtocolsModal: React.FC<LegalProtocolsModalProps> = ({ isOpen, onClo
             <div className="p-6 border-t border-white/5 flex flex-col md:flex-row gap-4 items-center justify-between bg-white/[0.02]">
               <span className="text-[10px] font-mono text-gray-500 uppercase">Acknowledgement required for identity initialization</span>
               <button 
-                onClick={onClose}
-                className="w-full md:w-auto px-8 py-3 bg-white text-black text-[10px] font-bold uppercase tracking-[0.2em] rounded-lg hover:bg-[#2547D0] hover:text-white transition-all transform active:scale-95"
+                onClick={() => {
+                  onAccept();
+                  onClose();
+                }}
+                disabled={!scrolledTabs.terms || !scrolledTabs.privacy}
+                className={`w-full md:w-auto px-8 py-3 text-[10px] font-bold uppercase tracking-[0.2em] rounded-lg transition-all transform ${
+                  scrolledTabs.terms && scrolledTabs.privacy
+                    ? "bg-white text-black hover:bg-[#2547D0] hover:text-white active:scale-95 cursor-pointer"
+                    : "bg-white/10 text-gray-500 cursor-not-allowed opacity-50"
+                }`}
               >
-                Accept Protocol
+                {scrolledTabs.terms && scrolledTabs.privacy ? "Accept Protocol" : "Read All to Accept"}
               </button>
             </div>
           </motion.div>

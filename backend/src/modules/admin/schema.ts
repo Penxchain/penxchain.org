@@ -4,6 +4,9 @@ export const querySchema = z.object({
   page: z.coerce.number().default(1),
   limit: z.coerce.number().default(20),
   search: z.string().optional(),
+  sortBy: z.enum(['pxpBalance', 'createdAt', 'dailyStreak']).optional(),
+  sortDir: z.enum(['asc', 'desc']).default('desc'),
+  status: z.enum(['ACTIVE', 'BANNED', 'UNDER_REVIEW']).optional(),
 });
 
 export const createTaskSchema = z.object({

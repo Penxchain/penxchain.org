@@ -7,9 +7,21 @@ import {
   BadRequestError,
   InternalServerError,
   InvalidCredentialsError,
+  AccountLockedError,
 } from "../../shared/errors";
 import { verifyRecaptcha, RECAPTCHA_MIN_SCORE } from "../../shared/recaptcha";
 import { Prisma } from "@prisma/client";
+import { lazySettleIfDue } from "../admin/penalty.service";
+
+// Fix #6: Normalize deviceId server-side to prevent spoofing via whitespace/case variants
+function normalizeDeviceId(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed.length < 8 || trimmed.length > 128) return null;
+  // Reject obviously fake patterns
+  if (/^0+$/.test(trimmed) || /^test/.test(trimmed)) return null;
+  return trimmed;
+}
 
 // Generate referral code in format PNX-XXXXXX (no confusing chars)
 async function generateReferralCode(): Promise<string> {
@@ -39,23 +51,29 @@ const getPepperedPassword = (password: string) =>
 export async function createUser(input: SignupInput) {
   const email = input.email.toLowerCase();
 
+  // Fix #6: Normalize and enforce deviceId (before DB checks so it's in scope for transaction)
+  const normalizedDeviceId = normalizeDeviceId((input as any).deviceId);
+  if (!normalizedDeviceId) {
+    throw new BadRequestError(
+      "A valid device identifier is required to create an account. Please ensure your browser supports this feature."
+    );
+  }
+
   // Check if user exists by email first (most common), then username/wallet if provided.
   try {
     const emailUser = await db.user.findUnique({ where: { email } });
     if (emailUser) throw new ConflictError("Email already registered");
 
-    // Strict Device ID Check
-    if (input.deviceId) {
-      const existingDeviceUser = await db.user.findFirst({
-        where: { deviceId: input.deviceId },
-        select: { id: true },
-      });
+    // Strict Device ID Check (using normalized value)
+    const existingDeviceUser = await db.user.findFirst({
+      where: { deviceId: normalizedDeviceId },
+      select: { id: true },
+    });
 
-      if (existingDeviceUser) {
-        throw new ConflictError(
-          "You can no longer create another account on this device. Try logging in on your previous account."
-        );
-      }
+    if (existingDeviceUser) {
+      throw new ConflictError(
+        "You can no longer create another account on this device. Try logging in on your previous account."
+      );
     }
 
     if (input.username) {
@@ -125,9 +143,8 @@ export async function createUser(input: SignupInput) {
         // do NOT pre-fill pxpBalance for referral; apply reward after creation
         referralCode,
       };
-      // Only add deviceId if provided (and cast to any so TS doesn't require regenerated client)
-      if ((input as any).deviceId)
-        createData.deviceId = (input as any).deviceId;
+      // Use normalized deviceId
+      createData.deviceId = normalizedDeviceId;
 
       const created = await tx.user.create({
         data: createData as any,
@@ -146,35 +163,34 @@ export async function createUser(input: SignupInput) {
         },
       });
 
-      // If user was referred and rewards not yet paid, credit both users and mark rewarded
+      // Deferred Referral Rewards — new user gets 75 PXP instantly, referrer deferred until 3 tasks
       let wasReferred = false;
-      let rewardsApplied: { newUser: number; referrer: number } | null = null;
+      let rewardsApplied: { newUser: number; referrer: string } | null = null;
 
       if (referredById) {
-        // Ensure we only apply rewards once by checking new user's referralRewarded flag (default false)
+        // Guard: only apply signup bonus once (newUserBonusGranted is the source of truth)
         const target = await (tx.user as any).findUnique({
           where: { id: created.id },
-          select: { referralRewarded: true },
+          select: { newUserBonusGranted: true },
         });
-        if (target && !target.referralRewarded) {
-          // Reward amounts
-          const referrerBonus = 150;
+        if (target && !target.newUserBonusGranted) {
           const newUserBonus = 75;
 
-          await (tx.user as any).update({
-            where: { id: referredById },
-            data: { pxpBalance: { increment: referrerBonus } },
-          });
+          // New user gets instant reward — NO referrer credit here
           await (tx.user as any).update({
             where: { id: created.id },
             data: {
               pxpBalance: { increment: newUserBonus },
-              referralRewarded: true,
+              newUserBonusGranted: true,
+              referralRewarded: true, // backward compat
             },
           });
 
+          // Referrer reward is DEFERRED — credited when this user completes 3 tasks
+          // (handled in waitlist.service.ts completeTask via referrerBonusGranted flag)
+
           wasReferred = true;
-          rewardsApplied = { newUser: newUserBonus, referrer: referrerBonus };
+          rewardsApplied = { newUser: newUserBonus, referrer: "deferred_until_3_tasks" };
         }
       }
 
@@ -253,6 +269,9 @@ export async function loginUser(input: LoginInput) {
         isBanned: true,
         banReason: true,
         bannedAt: true,
+        accountStatus: true,
+        reviewEndsAt: true,
+        tokenVersion: true,
       },
     });
 
@@ -274,8 +293,39 @@ export async function loginUser(input: LoginInput) {
     }
     
     // Check ban status immediately
-    if (user.isBanned) {
+    if (user.isBanned || user.accountStatus === "BANNED") {
       throw new InvalidCredentialsError(`Account suspended: ${user.banReason || "Violation of terms"}`);
+    }
+
+    // UNDER_REVIEW check — attempt lazy settlement if window expired (Fix #4)
+    if (user.accountStatus === "UNDER_REVIEW") {
+      if (user.reviewEndsAt && new Date() >= new Date(user.reviewEndsAt)) {
+        // Window expired — attempt lazy settlement
+        const settled = await lazySettleIfDue(user.id);
+        if (!settled) {
+          throw new AccountLockedError(user.reviewEndsAt);
+        }
+        // Fix #4: Re-read user after settlement — never trust stale data
+        const freshUser = await db.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true, email: true, password: true, username: true,
+            walletAddress: true, role: true, pxpBalance: true,
+            referralCode: true, createdAt: true, lastBonusClaim: true,
+            dailyStreak: true, lastActivityDate: true,
+            isBanned: true, banReason: true, bannedAt: true,
+            accountStatus: true, reviewEndsAt: true, tokenVersion: true,
+          },
+        });
+        if (!freshUser || freshUser.isBanned || freshUser.accountStatus !== "ACTIVE") {
+          throw new AccountLockedError(null);
+        }
+        // Use fresh data for the rest of the login flow
+        Object.assign(user, freshUser);
+      } else {
+        // Still within review window — block login
+        throw new AccountLockedError(user.reviewEndsAt);
+      }
     }
 
     // Check password with pepper

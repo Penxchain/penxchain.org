@@ -97,4 +97,4 @@ export async function verifyRecaptcha(
  * Higher = stricter (may block legitimate users)
  * Lower = more lenient (may allow more bots)
  */
-export const RECAPTCHA_MIN_SCORE = 0.5;
+export const RECAPTCHA_MIN_SCORE = 0.6;
