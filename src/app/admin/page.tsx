@@ -278,7 +278,8 @@ export default function AdminPage() {
   const handlePromote = async (id: string) => {
     if (!confirm("Promote to Admin?")) return;
     try {
-      await apiRequest(`/admin/users/${id}/promote`, { method: "POST" });
+      const result = await apiRequest(`/admin/users/${id}/promote`, { method: "POST" });
+      if (!result.ok) throw result.error;
       fetchData();
     } catch (err: any) {
       alert(err.message || "Promotion failed");
@@ -288,7 +289,8 @@ export default function AdminPage() {
   const handleDemote = async (id: string) => {
     if (!confirm("Remove Admin privileges?")) return;
     try {
-      await apiRequest(`/admin/users/${id}/demote`, { method: "POST" });
+      const result = await apiRequest(`/admin/users/${id}/demote`, { method: "POST" });
+      if (!result.ok) throw result.error;
       fetchData();
     } catch (err: any) {
       alert(err.message || "Demotion failed");
@@ -298,7 +300,8 @@ export default function AdminPage() {
   const handlePromoteSuper = async (id: string) => {
     if (!confirm("WARNING: Promote to SUPERADMIN? Full system control.")) return;
     try {
-      await apiRequest(`/admin/users/${id}/promote-super`, { method: "POST" });
+      const result = await apiRequest(`/admin/users/${id}/promote-super`, { method: "POST" });
+      if (!result.ok) throw result.error;
       fetchData();
     } catch (err: any) {
       alert(err.message || "Super promotion failed");
@@ -327,10 +330,11 @@ export default function AdminPage() {
 
   const handleTaskToggle = async (task: Task) => {
     try {
-      await apiRequest(`/admin/waitlist/tasks/${task.id}`, {
+      const result = await apiRequest(`/admin/waitlist/tasks/${task.id}`, {
         method: "PUT",
         body: { isActive: !task.isActive },
       });
+      if (!result.ok) throw result.error;
       fetchData();
     } catch (err: any) {
       alert(err.message || "Failed to toggle task");
@@ -701,6 +705,7 @@ export default function AdminPage() {
                 onBan={handleBan}
                 onUnban={handleUnban}
                 onBanDevice={handleBanDevice}
+                onPromote={handlePromote}
                 onDemote={handleDemote}
                 onPromoteSuper={handlePromoteSuper}
                 onShowHistory={(u: any) => setHistoryUser({ id: u.id, username: u.username })}
