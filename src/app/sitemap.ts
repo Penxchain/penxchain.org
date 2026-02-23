@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 import { DOCS_NAVIGATION } from "@/lib/docs-config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://penxchain.org"; // Replace with actual domain if different
+  const baseUrl = "https://penxchain.org";
 
   // Static pages
   const routes = ["", "/blog", "/wallet-waitlist"].map((route) => ({
