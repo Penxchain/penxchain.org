@@ -1,5 +1,6 @@
 
 import Hero from "@/components/hero";
+import Partners from "@/components/partners";
 import Features from "@/components/features";
 import HowItWorks from "@/components/how-it-works";
 import Ecosystem from "@/components/ecosystem";
@@ -12,6 +13,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-penx-bg">
       <Hero />
+      <Partners />
       <Features />
       <HowItWorks />
       <Ecosystem />
