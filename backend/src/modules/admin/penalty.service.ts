@@ -24,9 +24,6 @@ import { env } from "../../config/env";
 const PENALTY_WINDOW_MINUTES = parseInt(process.env.PENALTY_WINDOW_MINUTES || "30", 10);
 const PXP_PER_BAN = 150;
 
-// ============================================================
-// 1. TRIGGER REFERRAL PENALTY
-// ============================================================
 export async function triggerReferralPenalty(
   bannedUserId: string,
   banReason: string,
@@ -81,7 +78,7 @@ export async function triggerReferralPenalty(
           },
         });
 
-        // Put referrer into UNDER_REVIEW state
+        // then we put referrer into UNDER_REVIEW state
         await tx.user.update({
           where: { id: referrerId },
           data: {
@@ -100,7 +97,7 @@ export async function triggerReferralPenalty(
           }
         }
       } else {
-        // Add to existing batch (no timer reset!)
+        // Add to existing batch (no timer reset for this!)
         await tx.referralPenaltyBatch.update({
           where: { id: batch.id },
           data: {
@@ -153,9 +150,6 @@ export async function triggerReferralPenalty(
   }
 }
 
-// ============================================================
-// 2. SETTLE PENALTY BATCH (Atomic)
-// ============================================================
 export async function settlePenaltyBatch(
   batchId: string,
   adminId?: string
@@ -180,7 +174,7 @@ export async function settlePenaltyBatch(
       return { settled: false, error: `Batch already ${batch.status}` };
     }
 
-    // Mark as SETTLING (Fix #3: state machine)
+    // Mark as SETTLING
     await tx.referralPenaltyBatch.update({
       where: { id: batchId },
       data: { status: "SETTLING" },
@@ -323,9 +317,6 @@ export async function settlePenaltyBatch(
   });
 }
 
-// ============================================================
-// 3. LAZY SETTLE IF DUE (Called on auth attempts)
-// ============================================================
 export async function lazySettleIfDue(userId: string): Promise<boolean> {
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -358,9 +349,6 @@ export async function lazySettleIfDue(userId: string): Promise<boolean> {
   return true;
 }
 
-// ============================================================
-// 4. CANCEL PENALTY BATCH (Admin escape hatch)
-// ============================================================
 export async function cancelPenaltyBatch(
   batchId: string,
   adminId: string
@@ -404,9 +392,7 @@ export async function cancelPenaltyBatch(
   });
 }
 
-// ============================================================
-// 5. EXTEND REVIEW WINDOW
-// ============================================================
+// extend review window
 export async function extendReview(
   batchId: string,
   additionalMinutes: number,
