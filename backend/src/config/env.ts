@@ -11,6 +11,7 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  FRONTEND_URLS: z.string().optional(),
   REDIS_URL: z.string().url().optional(),
   SUPER_ADMIN_ID: z.string().min(1, "SUPER_ADMIN_ID is required"),
   PASSWORD_PEPPER: z.string().min(32, "PASSWORD_PEPPER must be at least 32 chars"),

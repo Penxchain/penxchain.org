@@ -22,8 +22,31 @@ export async function buildApp() {
     max: 100,
     timeWindow: '1 minute',
   });
+  const allowedOrigins = new Set(
+    [
+      env.FRONTEND_URL,
+      ...(env.FRONTEND_URLS ? env.FRONTEND_URLS.split(',') : []),
+    ]
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+  const allowAllOrigins = allowedOrigins.has('*');
   await app.register(cors, {
-    origin: [env.FRONTEND_URL],
+    origin: (origin, callback) => {
+      if (allowAllOrigins) {
+        callback(null, true);
+        return;
+      }
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed'), false);
+    },
     credentials: true,
     // Ensure preflight allows the methods and headers used by the frontend
     methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
