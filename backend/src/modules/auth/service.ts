@@ -53,11 +53,6 @@ export async function createUser(input: SignupInput) {
 
   // Fix #6: Normalize and enforce deviceId (before DB checks so it's in scope for transaction)
   const normalizedDeviceId = normalizeDeviceId((input as any).deviceId);
-  if (!normalizedDeviceId) {
-    throw new BadRequestError(
-      "A valid device identifier is required to create an account. Please ensure your browser supports this feature."
-    );
-  }
 
   // Check if user exists by email first (most common), then username/wallet if provided.
   try {
@@ -65,15 +60,17 @@ export async function createUser(input: SignupInput) {
     if (emailUser) throw new ConflictError("Email already registered");
 
     // Strict Device ID Check (using normalized value)
-    const existingDeviceUser = await db.user.findFirst({
-      where: { deviceId: normalizedDeviceId },
-      select: { id: true },
-    });
+    if (normalizedDeviceId) {
+      const existingDeviceUser = await db.user.findFirst({
+        where: { deviceId: normalizedDeviceId },
+        select: { id: true },
+      });
 
-    if (existingDeviceUser) {
-      throw new ConflictError(
-        "You can no longer create another account on this device. Try logging in on your previous account."
-      );
+      if (existingDeviceUser) {
+        throw new ConflictError(
+          "You can no longer create another account on this device. Try logging in on your previous account."
+        );
+      }
     }
 
     if (input.username) {
@@ -144,7 +141,9 @@ export async function createUser(input: SignupInput) {
         referralCode,
       };
       // Use normalized deviceId
-      createData.deviceId = normalizedDeviceId;
+      if (normalizedDeviceId) {
+        createData.deviceId = normalizedDeviceId;
+      }
 
       const created = await tx.user.create({
         data: createData as any,
