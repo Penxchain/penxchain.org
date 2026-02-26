@@ -76,7 +76,7 @@ export default function PrivateSalePage() {
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const RATE = 20; // 1 USDT = 20 PENX ($0.05)
+  const RATE = 400; // 1 USDC = 400 PENX
   const DEPOSIT_ADDRESS = "0x99e790eF160690CC2ECA5B6CE08d2b2B353758f7";
 
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function PrivateSalePage() {
                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-penx-primary opacity-75"></span>
                <span className="relative inline-flex rounded-full h-2 w-2 bg-penx-primary"></span>
              </span>
-             Private Sale Live
+             ICO Live
            </motion.div>
 
           <motion.h1
@@ -187,7 +187,7 @@ export default function PrivateSalePage() {
             transition={{ delay: 0.1 }}
             className="text-xl text-gray-400 max-w-2xl mx-auto font-jakarta leading-relaxed"
           >
-            Join the PENXCHAIN private sale and secure your allocation at the lowest possible entry price before public listing.
+            Join  PENXCHAIN ICO and secure your allocation at the lowest possible entry price before public listing.
           </motion.p>
         </div>
 
@@ -302,7 +302,7 @@ export default function PrivateSalePage() {
               <GlassCard className="p-8 border-penx-primary/30 shadow-[0_0_60px_-15px_rgba(37,71,208,0.3)] bg-gradient-to-b from-white/[0.05] to-black/40">
                 <div className="text-center mb-8">
                    <h3 className="text-2xl font-bold text-white mb-2 font-space">Buy PENX Tokens</h3>
-                   <p className="text-gray-400 text-sm">1 USDT = {RATE} PENX ($0.0025)</p>
+                   <p className="text-gray-400 text-sm">1 USDC = {RATE} PENX ($0.0025)</p>
                 </div>
                 
                 {submitStatus === "success" ? (
@@ -317,7 +317,7 @@ export default function PrivateSalePage() {
                     <h4 className="text-2xl font-bold text-white mb-2 font-space">Payment Submitted!</h4>
                     <p className="text-gray-400 mb-6 font-jakarta">
                       Thank you for your contribution. Your order has been recorded. 
-                      Please ensure you have sent the USDT to the deposit address. 
+                      Please ensure you have sent the USDC to the deposit address. 
                       Once confirmed, your PENX allocation will be updated.
                     </p>
                     <button 
@@ -331,7 +331,7 @@ export default function PrivateSalePage() {
                   <div className="space-y-6">
                     {/* Deposit Address Info - Moved up for visibility */}
                     <div className="bg-white/5 rounded-xl p-4 border border-white/5 mb-6">
-                       <div className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">Send USDT To This Address:</div>
+                       <div className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">Send USDC To This Address:</div>
                        <div className="flex items-center justify-between bg-black/30 rounded-lg p-3 border border-white/5 mb-2">
                           <code className="text-xs text-white font-mono break-all">{DEPOSIT_ADDRESS}</code>
                           <button 
@@ -371,7 +371,7 @@ export default function PrivateSalePage() {
                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-white text-lg font-space focus:outline-none focus:border-penx-primary/50 focus:ring-1 focus:ring-penx-primary/50 transition-all placeholder:text-gray-600" 
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
-                          <span className="text-white font-bold text-sm">USDT</span>
+                          <span className="text-white font-bold text-sm">USDC</span>
                         </div>
                       </div>
                     </div>
@@ -433,7 +433,7 @@ export default function PrivateSalePage() {
                     
                     <div className="flex items-start gap-3 text-xs text-gray-400 mt-2 bg-blue-900/10 p-3 rounded-lg border border-blue-500/10">
                       <AlertCircle className="w-4 h-4 text-penx-primary shrink-0 mt-0.5" />
-                      <p>By participating, you confirm you understand the risks involvedd with crypto investments.</p>
+                      <p>By participating, you confirm you understand the risks involved with crypto investments.</p>
                     </div>
                   </div>
                 )}

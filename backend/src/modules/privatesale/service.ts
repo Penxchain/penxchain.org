@@ -1,7 +1,7 @@
 import { db } from '../../shared/database/db';
 import { CreateOrderInput } from './schema';
 
-const RATE = 20; // 1 USDT = 20 PENX
+const RATE = 400; // 1 USDT = 400 PENX
 const SOFT_CAP = 500000;
 const HARD_CAP = 2000000;
 
