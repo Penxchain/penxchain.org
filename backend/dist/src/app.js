@@ -104,6 +104,10 @@ async function buildApp() {
         const { adminRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/admin/routes')));
         adminRoutes(instance);
     }, { prefix: '/admin' });
+    app.register(async (instance) => {
+        const { privateSaleRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/privatesale/routes')));
+        privateSaleRoutes(instance);
+    }, { prefix: '/privatesale' });
     app.get('/', async () => ({
         status: 'operational',
         service: 'Penxchain API',

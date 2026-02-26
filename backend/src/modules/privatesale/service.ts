@@ -14,6 +14,7 @@ export async function createOrder(data: CreateOrderInput) {
       usdtAmount: data.usdtAmount,
       penxAmount: penxAmount,
       txHash: data.txHash,
+      userId: data.userId,
       status: 'PENDING',
     },
   });
@@ -32,7 +33,7 @@ export async function listOrders(status?: string) {
 export async function confirmOrder(orderId: string) {
   return db.privateSaleOrder.update({
     where: { id: orderId },
-    data: { status: 'CONFIRMED' },
+    data: { status: 'CONFIRMED', paidAt: new Date() },
   });
 }
 
