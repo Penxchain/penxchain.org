@@ -14,7 +14,6 @@ export async function createOrder(data: CreateOrderInput) {
       usdtAmount: data.usdtAmount,
       penxAmount: penxAmount,
       txHash: data.txHash,
-      userId: data.userId,
       status: 'PENDING',
     },
   });

@@ -4,7 +4,6 @@ export const createOrderSchema = z.object({
   walletAddress: z.string().min(40, "Invalid wallet address"), // Basic length check
   usdtAmount: z.number().positive("Amount must be positive"),
   txHash: z.string().min(10, "Transaction Hash is required"),
-  userId: z.string().uuid().optional(),
 });
 
 export const confirmOrderSchema = z.object({
