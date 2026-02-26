@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -173,4 +174,18 @@ enum TaskType {
   SOCIAL
   DAILY
   ONE_TIME
+}
+
+model PrivateSaleOrder {
+  id            String   @id @default(uuid())
+  walletAddress String
+  usdtAmount    Float
+  penxAmount    Float
+  txHash        String?
+  status        String   @default("PENDING") // PENDING, CONFIRMED, REJECTED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([walletAddress])
+  @@index([status])
 }

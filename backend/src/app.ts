@@ -81,6 +81,11 @@ export async function buildApp() {
     adminRoutes(instance);
   }, { prefix: '/admin' });
 
+  app.register(async (instance: FastifyInstance) => {
+    const { privateSaleRoutes } = await import('./modules/privatesale/routes');
+    privateSaleRoutes(instance);
+  }, { prefix: '/privatesale' });
+
   app.get('/', async () => ({
     status: 'operational',
     service: 'Penxchain API',
