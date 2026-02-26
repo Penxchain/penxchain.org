@@ -331,7 +331,7 @@ export default function PrivateSalePage() {
                   <div className="space-y-6">
                     {/* Deposit Address Info - Moved up for visibility */}
                     <div className="bg-white/5 rounded-xl p-4 border border-white/5 mb-6">
-                       <div className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">Send USDC To This Address:</div>
+                       <div className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">Send USDC (Base) To This Address:</div>
                        <div className="flex items-center justify-between bg-black/30 rounded-lg p-3 border border-white/5 mb-2">
                           <code className="text-xs text-white font-mono break-all">{DEPOSIT_ADDRESS}</code>
                           <button 
