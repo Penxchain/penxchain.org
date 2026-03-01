@@ -162,6 +162,15 @@ export async function apiRequest<T>(
     retries?: number;
   } = {},
 ): Promise<ApiResult<T>> {
+  const clearInvalidSession = () => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("penxchain_waitlist_user");
+    try {
+      const ev = new CustomEvent("penxchain:user-updated", { detail: null });
+      window.dispatchEvent(ev);
+    } catch {}
+  };
+
   const maxRetries = options.retries ?? 2;
   let attempt = 0;
 
@@ -199,6 +208,15 @@ export async function apiRequest<T>(
             err.response?.data?.message || err.message || "Request failed";
           const status = err.response?.status;
           const isNetworkError = !err.response;
+          const lowerMessage = rawMessage.toLowerCase();
+          if (
+            status === 401 &&
+            (lowerMessage.includes("token") ||
+              lowerMessage.includes("jwt") ||
+              lowerMessage.includes("authorization"))
+          ) {
+            clearInvalidSession();
+          }
 
           // Log detailed axios error to console for debugging (do not expose raw to users)
           console.error("[API][ERROR]", {

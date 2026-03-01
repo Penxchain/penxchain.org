@@ -49,6 +49,7 @@ model User {
   settledBatches     ReferralPenaltyBatch[] @relation("SettledByAdmin")
   adminPenaltyEvents ReferralPenaltyEvent[] @relation("AdminPenaltyEvents")
   notifications      Notification[]
+  privateSaleOrders  PrivateSaleOrder[]
 
   @@index([pxpBalance])
   @@index([createdAt])
@@ -173,4 +174,23 @@ enum TaskType {
   SOCIAL
   DAILY
   ONE_TIME
+}
+
+model PrivateSaleOrder {
+  id            String   @id @default(uuid())
+  userId        String?
+  walletAddress String
+  usdtAmount    Float
+  penxAmount    Float
+  txHash        String?
+  status        String   @default("PENDING") // PENDING, CONFIRMED, REJECTED
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([walletAddress])
+  @@index([userId])
+  @@index([status])
 }

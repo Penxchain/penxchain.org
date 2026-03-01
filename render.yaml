@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: penxchain-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPER_ADMIN_ID
+        sync: false
+      - key: PASSWORD_PEPPER
+        sync: false
+      - key: RECAPTCHA_SECRET_KEY
+        sync: false
+      - key: PENALTY_WINDOW_MINUTES
+        value: "30"
+
+  - type: web
+    name: penxchain-frontend
+    env: node
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+        sync: false

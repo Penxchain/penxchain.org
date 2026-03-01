@@ -56,8 +56,29 @@ async function buildApp() {
         max: 100,
         timeWindow: '1 minute',
     });
+    const allowedOrigins = new Set([
+        env_1.env.FRONTEND_URL,
+        ...(env_1.env.FRONTEND_URLS ? env_1.env.FRONTEND_URLS.split(',') : []),
+    ]
+        .map((origin) => origin.trim())
+        .filter(Boolean));
+    const allowAllOrigins = allowedOrigins.has('*');
     await app.register(cors_1.default, {
-        origin: [env_1.env.FRONTEND_URL],
+        origin: (origin, callback) => {
+            if (allowAllOrigins) {
+                callback(null, true);
+                return;
+            }
+            if (!origin) {
+                callback(null, true);
+                return;
+            }
+            if (allowedOrigins.has(origin)) {
+                callback(null, true);
+                return;
+            }
+            callback(new Error('Not allowed'), false);
+        },
         credentials: true,
         methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
@@ -83,6 +104,10 @@ async function buildApp() {
         const { adminRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/admin/routes')));
         adminRoutes(instance);
     }, { prefix: '/admin' });
+    app.register(async (instance) => {
+        const { privateSaleRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/privatesale/routes')));
+        privateSaleRoutes(instance);
+    }, { prefix: '/privatesale' });
     app.get('/', async () => ({
         status: 'operational',
         service: 'Penxchain API',

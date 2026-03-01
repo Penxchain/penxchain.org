@@ -14,10 +14,12 @@ import {
   Map,
   Clock,
   ChevronRight,
+  Zap,
 } from "lucide-react";
 
 // Icons included in configuration
 const NAV_ITEMS = [
+  { label: "Private Sale", href: "/privatesale", icon: Zap },
   { label: "Documentation", href: "/docs", icon: FileText },
   { label: "Roadmap", href: "/#roadmap", icon: Map },
   { label: "Tokenomics", href: "/#tokenomics", icon: DollarSign },

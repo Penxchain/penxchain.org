@@ -44,19 +44,18 @@ const getPepperedPassword = (password) => password + env_1.env.PASSWORD_PEPPER;
 async function createUser(input) {
     const email = input.email.toLowerCase();
     const normalizedDeviceId = normalizeDeviceId(input.deviceId);
-    if (!normalizedDeviceId) {
-        throw new errors_1.BadRequestError("A valid device identifier is required to create an account. Please ensure your browser supports this feature.");
-    }
     try {
         const emailUser = await db_1.db.user.findUnique({ where: { email } });
         if (emailUser)
             throw new errors_1.ConflictError("Email already registered");
-        const existingDeviceUser = await db_1.db.user.findFirst({
-            where: { deviceId: normalizedDeviceId },
-            select: { id: true },
-        });
-        if (existingDeviceUser) {
-            throw new errors_1.ConflictError("You can no longer create another account on this device. Try logging in on your previous account.");
+        if (normalizedDeviceId) {
+            const existingDeviceUser = await db_1.db.user.findFirst({
+                where: { deviceId: normalizedDeviceId },
+                select: { id: true },
+            });
+            if (existingDeviceUser) {
+                throw new errors_1.ConflictError("You can no longer create another account on this device. Try logging in on your previous account.");
+            }
         }
         if (input.username) {
             try {
@@ -123,7 +122,9 @@ async function createUser(input) {
                 referredById,
                 referralCode,
             };
-            createData.deviceId = normalizedDeviceId;
+            if (normalizedDeviceId) {
+                createData.deviceId = normalizedDeviceId;
+            }
             const created = await tx.user.create({
                 data: createData,
                 select: {

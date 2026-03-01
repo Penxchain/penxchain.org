@@ -15,6 +15,7 @@ const envSchema = zod_1.z.object({
         .enum(["development", "production", "test"])
         .default("development"),
     FRONTEND_URL: zod_1.z.string().url().default("http://localhost:3000"),
+    FRONTEND_URLS: zod_1.z.string().optional(),
     REDIS_URL: zod_1.z.string().url().optional(),
     SUPER_ADMIN_ID: zod_1.z.string().min(1, "SUPER_ADMIN_ID is required"),
     PASSWORD_PEPPER: zod_1.z.string().min(32, "PASSWORD_PEPPER must be at least 32 chars"),

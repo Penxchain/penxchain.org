@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "postinstall": "prisma generate",
-    "start": "node dist/src/server.js", 
+    "postinstall": "prisma generate && prisma db push",
+    "db:push": "prisma db push",
+    "start": "prisma db push && node dist/src/server.js",
     "test": "vitest run"
   },
   "keywords": [],
