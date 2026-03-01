@@ -13,7 +13,7 @@ import { verifyRecaptcha, RECAPTCHA_MIN_SCORE } from "../../shared/recaptcha";
 import { Prisma } from "@prisma/client";
 import { lazySettleIfDue } from "../admin/penalty.service";
 
-// Fix #6: Normalize deviceId server-side to prevent spoofing via whitespace/case variants
+// Normalize deviceId server-side to prevent spoofing via whitespace/case variants
 function normalizeDeviceId(raw: string | undefined | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim().toLowerCase();
@@ -23,7 +23,7 @@ function normalizeDeviceId(raw: string | undefined | null): string | null {
   return trimmed;
 }
 
-// Generate referral code in format PNX-XXXXXX (no confusing chars)
+// Generate referral code in format PNX-XXXXXX
 async function generateReferralCode(): Promise<string> {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -40,7 +40,7 @@ async function generateReferralCode(): Promise<string> {
     if (!existing) return code;
   }
 
-  // Fallback deterministic value (should be extremely rare)
+  // Fallback deterministic value
   return `PNX-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 }
 
@@ -51,7 +51,7 @@ const getPepperedPassword = (password: string) =>
 export async function createUser(input: SignupInput) {
   const email = input.email.toLowerCase();
 
-  // Fix #6: Normalize and enforce deviceId (before DB checks so it's in scope for transaction)
+  // Normalize and enforce deviceId (before DB checks so it's in scope for transaction)
   const normalizedDeviceId = normalizeDeviceId((input as any).deviceId);
   if (!normalizedDeviceId) {
     throw new BadRequestError(
@@ -59,78 +59,75 @@ export async function createUser(input: SignupInput) {
     );
   }
 
-  // Check if user exists by email first (most common), then username/wallet if provided.
+  
+  // Run all existence checks in parallel instead of sequentially (4 round trips → 1)
   try {
-    const emailUser = await db.user.findUnique({ where: { email } });
-    if (emailUser) throw new ConflictError("Email already registered");
-
-    // Strict Device ID Check (using normalized value)
-    const existingDeviceUser = await db.user.findFirst({
-      where: { deviceId: normalizedDeviceId },
-      select: { id: true },
-    });
-
-    if (existingDeviceUser) {
-      throw new ConflictError(
-        "You can no longer create another account on this device. Try logging in on your previous account."
-      );
-    }
+    const checks: Promise<any>[] = [
+      db.user.findUnique({ where: { email }, select: { id: true } }),
+      db.user.findFirst({ where: { deviceId: normalizedDeviceId }, select: { id: true } }),
+    ];
 
     if (input.username) {
-      try {
-        const usernameUser = await db.user.findUnique({
-          where: { username: input.username },
-        });
-        if (usernameUser) throw new ConflictError("Username already taken");
-      } catch (e) {
-        // If DB schema doesn't have username column, ignore and continue
-        if ((e as any)?.code && (e as any).code === "P2022") {
-          console.warn("[AUTH] username lookup not available in DB, skipping");
-        } else throw e;
-      }
+      checks.push(
+        db.user.findUnique({ where: { username: input.username }, select: { id: true } })
+          .catch((e: any) => {
+            if (e?.code === "P2022") return null; // column missing — skip
+            throw e;
+          })
+      );
+    } else {
+      checks.push(Promise.resolve(null));
     }
 
     if (input.walletAddress) {
-      try {
-        const walletUser = await db.user.findUnique({
-          where: { walletAddress: input.walletAddress },
-        });
-        if (walletUser) throw new ConflictError("Wallet already linked");
-      } catch (e) {
-        if ((e as any)?.code && (e as any).code === "P2022") {
-          console.warn(
-            "[AUTH] walletAddress lookup not available in DB, skipping",
-          );
-        } else throw e;
-      }
+      checks.push(
+        db.user.findUnique({ where: { walletAddress: input.walletAddress }, select: { id: true } })
+          .catch((e: any) => {
+            if (e?.code === "P2022") return null;
+            throw e;
+          })
+      );
+    } else {
+      checks.push(Promise.resolve(null));
     }
+
+    const [emailUser, deviceUser, usernameUser, walletUser] = await Promise.all(checks);
+
+    if (emailUser) throw new ConflictError("Email already registered");
+    if (deviceUser) throw new ConflictError(
+      "You can no longer create another account on this device. Try logging in on your previous account."
+    );
+    if (usernameUser) throw new ConflictError("Username already taken");
+    if (walletUser) throw new ConflictError("Wallet already linked");
   } catch (err: any) {
     if (err instanceof ConflictError) throw err;
-    // Any other DB error here should be surfaced as an internal error
     console.error("[AUTH] user existence check failed:", err?.message || err);
     throw new InternalServerError();
   }
 
-  // Prepare referral (validate code but don't reward yet)
-  let referredById: string | null = null;
-  if (input.referralCode) {
-    const referrer = await db.user.findFirst({
-      where: { referralCode: input.referralCode },
-      select: { id: true },
-    });
-    if (referrer) {
-      referredById = referrer.id;
-    }
-  }
+  // === PARALLEL: referral lookup + password hash + referral code gen ===
+  // These are independent — run them all at once
+  const referralPromise = input.referralCode
+    ? db.user.findFirst({
+        where: { referralCode: input.referralCode },
+        select: { id: true },
+      })
+    : Promise.resolve(null);
 
-  // Hash password if provided - Using 12 rounds + Pepper
-  let hashedPassword = null;
-  if (input.password) {
-    const peppered = getPepperedPassword(input.password);
-    hashedPassword = await bcrypt.hash(peppered, 12);
-  }
-  // Ensure user gets a PNX- referral code on creation
-  const referralCode = await generateReferralCode();
+  const hashPromise = input.password
+    ? bcrypt.hash(getPepperedPassword(input.password), 10)
+    : Promise.resolve(null);
+
+  const codePromise = generateReferralCode();
+
+  const [referrer, hashedPassword, referralCode] = await Promise.all([
+    referralPromise,
+    hashPromise,
+    codePromise,
+  ]);
+
+  const referredById = referrer?.id ?? null;
+
   // Create user and (if referred) perform one-time reward atomically
   try {
     return await db.$transaction(async (tx) => {
@@ -182,7 +179,6 @@ export async function createUser(input: SignupInput) {
             data: {
               pxpBalance: { increment: newUserBonus },
               newUserBonusGranted: true,
-              referralRewarded: true, // backward compat
             },
           });
 
@@ -338,11 +334,14 @@ export async function loginUser(input: LoginInput) {
       if (!valid) {
         const legacyValid = await bcrypt.compare(password, user.password);
         if (legacyValid) {
-          const newPepperedHash = await bcrypt.hash(peppered, 12);
-          await db.user.update({
-            where: { id: user.id },
-            data: { password: newPepperedHash },
-            select: { id: true },
+          // Fire-and-forget — don't block login for password upgrade
+          const newPepperedHash = bcrypt.hash(peppered, 10);
+          newPepperedHash.then((hash) => {
+            db.user.update({
+              where: { id: user.id },
+              data: { password: hash },
+              select: { id: true },
+            }).catch(() => { /* non-fatal */ });
           });
           valid = true;
           console.log(

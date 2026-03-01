@@ -169,37 +169,49 @@ export async function login(
 
     saveSession(user);
     broadcastSessionUpdate(user);
-    // Fetch server-side counts (referrals, rank, authoritative points)
-    try {
-      const statsRes = await apiRequest<any>("/waitlist/stats");
-      if (statsRes.ok && statsRes.data) {
-        const stats = statsRes.data;
-        const updated = {
-          ...user,
-          points: stats.pxpBalance ?? user.points,
-          rank: stats.rank ?? user.rank,
-          referralCount: stats._count?.referrals ?? user.referralCount,
-          completedTasks: stats.tasks ? stats.tasks.map((t: any) => t.taskId) : user.completedTasks,
-          dailyStreak: stats.dailyStreak ?? user.dailyStreak,
-          lastActivityDate: stats.lastActivityDate ?? user.lastActivityDate,
-          isBanned: stats.isBanned ?? user.isBanned,
-          banReason: stats.banReason ?? user.banReason,
-          bannedAt: stats.bannedAt ?? user.bannedAt,
-        } as User;
-        saveSession(updated);
-        broadcastSessionUpdate(updated);
-        return { success: true, user: updated };
-      }
-    } catch (e) {
-      // Non-fatal - keep the session we already saved
-      console.warn("[AUTH] Failed to fetch user stats after login/signup:", e);
-    }
-
+    refreshUserStats(); // Background refresh
     return { success: true, user };
   } catch (error: any) {
     console.error("[AUTH] Unexpected error during login:", error.message);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Force refresh the current user's stats from the server.
+ * Useful after completing tasks, claiming bonuses, or updating notifications.
+ */
+export async function refreshUserStats(): Promise<User | null> {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return null;
+
+  try {
+    const statsRes = await apiRequest<any>("/waitlist/stats");
+    if (statsRes.ok && statsRes.data) {
+      const stats = statsRes.data;
+      const updated = {
+        ...currentUser,
+        points: stats.pxpBalance ?? currentUser.points,
+        rank: stats.rank ?? currentUser.rank,
+        referralCount: stats.referralCount ?? currentUser.referralCount,
+        earnedReferralsCount: stats.earnedReferralsCount ?? currentUser.earnedReferralsCount,
+        pendingReferralsCount: stats.pendingReferralsCount ?? currentUser.pendingReferralsCount,
+        completedTasks: stats.tasks ? stats.tasks.map((t: any) => t.taskId) : currentUser.completedTasks,
+        dailyStreak: stats.dailyStreak ?? currentUser.dailyStreak,
+        lastActivityDate: stats.lastActivityDate ?? currentUser.lastActivityDate,
+        notifications: stats.notifications ?? currentUser.notifications,
+        isBanned: stats.isBanned ?? currentUser.isBanned,
+        banReason: stats.banReason ?? currentUser.banReason,
+        bannedAt: stats.bannedAt ?? currentUser.bannedAt,
+      } as User;
+      saveSession(updated);
+      broadcastSessionUpdate(updated);
+      return updated;
+    }
+  } catch (err) {
+    console.error("[AUTH] Stats refresh failed:", err);
+  }
+  return currentUser;
 }
 
 // Calculate user level based on points
@@ -263,13 +275,13 @@ export async function signup(
       lastDailyReset: new Date().toISOString(),
       role: backendUser.role || "USER",
       token: backendUser.token,
+      referredBy: backendUser.referredBy || null,
     };
 
     saveSession(user);
     broadcastSessionUpdate(user);
-    // Fetch server-side counts (referrals, rank, authoritative points)
-    try {
-      const statsRes = await apiRequest<any>("/waitlist/stats");
+    // Fire-and-forget: fetch server-side stats in background (don't block signup return)
+    apiRequest<any>("/waitlist/stats").then((statsRes) => {
       if (statsRes.ok && statsRes.data) {
         const stats = statsRes.data;
         const updated = {
@@ -280,11 +292,8 @@ export async function signup(
         } as User;
         saveSession(updated);
         broadcastSessionUpdate(updated);
-        return { success: true, user: updated, wasReferred, rewardsApplied };
       }
-    } catch (e) {
-      console.warn("[AUTH] Failed to fetch user stats after login/signup:", e);
-    }
+    }).catch(() => { /* non-fatal background fetch */ });
 
     return { success: true, user, wasReferred, rewardsApplied };
   } catch (error: any) {

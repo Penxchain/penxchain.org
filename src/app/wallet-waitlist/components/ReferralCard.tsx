@@ -43,19 +43,32 @@ export default function ReferralCard({ user }: ReferralCardProps) {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="p-4 bg-white/[0.02] rounded-lg border border-white/5">
-          <p className="text-white/30 text-[9px] uppercase tracking-wider mb-1 font-mono">
-            Referrals
+          <p className="text-[#2547D0]/60 text-[9px] uppercase tracking-wider mb-1 font-mono">
+            Earned (Refs)
           </p>
-          <p className="text-white text-lg font-bold">
-            {Number(user.referralCount ?? 0)}
-          </p>
+          <div className="flex items-baseline gap-1.5">
+            <p className="text-white text-lg font-bold">
+              {Number(user.earnedReferralsCount ?? 0)}
+            </p>
+            <p className="text-[#2547D0] text-[10px] font-bold">
+              +{(Number(user.earnedReferralsCount ?? 0) * 150).toLocaleString()} PXP
+            </p>
+          </div>
         </div>
-        <div className="p-4 bg-white/[0.02] rounded-lg border border-white/5">
-          <p className="text-white/30 text-[9px] uppercase tracking-wider mb-1 font-mono">
-            Earned
+        <div className="p-4 bg-amber-500/[0.02] rounded-lg border border-amber-500/10 relative overflow-hidden group/pending">
+          <p className="text-amber-500/40 text-[9px] uppercase tracking-wider mb-1 font-mono">
+            Pending (Refs)
           </p>
-          <p className="text-[#2547D0] text-lg font-bold">
-            {(Number(user.referralCount ?? 0) * 150).toLocaleString()}
+          <div className="flex items-baseline gap-1.5">
+            <p className="text-white text-lg font-bold">
+              {Number(user.pendingReferralsCount ?? 0)}
+            </p>
+            <p className="text-amber-500/50 text-[10px] font-bold">
+              ~{(Number(user.pendingReferralsCount ?? 0) * 150).toLocaleString()} PXP
+            </p>
+          </div>
+          <p className="text-[7.5px] text-amber-500/30 font-mono mt-1 leading-tight uppercase group-hover/pending:text-amber-500/60 transition-colors">
+            Awaiting 3-Task Completion
           </p>
         </div>
       </div>

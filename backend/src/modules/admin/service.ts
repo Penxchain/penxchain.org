@@ -5,11 +5,25 @@ import { redisClient } from "../../shared/redis";
 
 export async function getSystemStats() {
   try {
-    const totalUsers = await db.user.count();
+    const totalUsers = await db.user.count({
+      where: { 
+        isBanned: false,
+        accountStatus: { not: "BANNED" }
+      }
+    });
+
     const totalPoints = await db.user.aggregate({
+      where: { 
+        isBanned: false,
+        accountStatus: { not: "BANNED" }
+      },
       _sum: { pxpBalance: true },
     });
     const topReferrers = await db.user.findMany({
+      where: { 
+        isBanned: false,
+        accountStatus: { not: "BANNED" }
+      },
       take: 5,
       orderBy: { referrals: { _count: "desc" } },
       select: { username: true, _count: { select: { referrals: true } } },
@@ -20,7 +34,11 @@ export async function getSystemStats() {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
     const usersLastWeek = await db.user.count({
-      where: { createdAt: { lt: sevenDaysAgo } }
+      where: { 
+        createdAt: { lt: sevenDaysAgo },
+        isBanned: false,
+        accountStatus: { not: "BANNED" }
+      }
     });
     
     let growthPercent = 0;

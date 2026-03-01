@@ -56,5 +56,5 @@ async function verifyRecaptcha(token, expectedAction) {
         return { success: false, score: 0, error: 'Verification failed' };
     }
 }
-exports.RECAPTCHA_MIN_SCORE = 0.5;
+exports.RECAPTCHA_MIN_SCORE = 0.6;
 //# sourceMappingURL=recaptcha.js.map

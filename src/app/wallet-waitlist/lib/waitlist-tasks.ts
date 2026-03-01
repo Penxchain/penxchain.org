@@ -141,7 +141,9 @@ export async function completeTask(
         const synced = updateCurrentUser({
           points: s.pxpBalance ?? newBalance,
           rank: s.rank ?? updatedUser?.rank,
-          referralCount: s._count?.referrals ?? updatedUser?.referralCount,
+          referralCount: s.referralCount ?? updatedUser?.referralCount,
+          earnedReferralsCount: s.earnedReferralsCount ?? updatedUser?.earnedReferralsCount,
+          pendingReferralsCount: s.pendingReferralsCount ?? updatedUser?.pendingReferralsCount,
         });
         if (synced)
           window.dispatchEvent(

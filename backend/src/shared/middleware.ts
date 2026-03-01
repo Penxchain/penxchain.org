@@ -41,7 +41,7 @@ export async function requireActiveUser(
     // Ban check (hard block)
     if (user.isBanned || user.accountStatus === "BANNED") {
       const reason = user.banReason || "Account suspended";
-      throw new ForbiddenError(`Account banned: ${reason}. Contact support@penxchain.com if you believe this is an error.`);
+      throw new ForbiddenError(`Account banned: ${reason}. Contact support@penxchain.org if you believe this is an error.`);
     }
 
     // UNDER_REVIEW check — try lazy settlement if window expired

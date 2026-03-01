@@ -25,6 +25,20 @@ export interface User {
   isBanned?: boolean;
   banReason?: string;
   bannedAt?: string;
+  // Referral tracking refinements
+  earnedReferralsCount?: number;
+  pendingReferralsCount?: number;
+  // Notifications
+  notifications?: Notification[];
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export interface Task {

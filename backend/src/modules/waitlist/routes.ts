@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import z from 'zod';
-import { completeTaskHandler, getTasksHandler, getUserStatsHandler, getTimeHandler, claimBonusHandler } from './controller';
+import { completeTaskHandler, getTasksHandler, getUserStatsHandler, getTimeHandler, claimBonusHandler, markNotificationsAsReadHandler } from './controller';
 import { completeTaskSchema, claimBonusSchema } from './schema';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
@@ -67,6 +67,18 @@ export async function waitlistRoutes(app: FastifyInstance) {
         }
     },
     getUserStatsHandler
+  );
+
+  server.post(
+    '/notifications/read',
+    {
+      schema: {
+        tags: ['Waitlist'],
+        summary: 'Mark all notifications as read',
+        querystring: z.object({}).passthrough(),
+      }
+    },
+    markNotificationsAsReadHandler
   );
 
   server.post(

@@ -1,9 +1,6 @@
 -- ============================================================================
 -- PENXCHAIN WAITLIST HARDENING — COMPLETE MIGRATION (SAFE & IDEMPOTENT)
 -- ============================================================================
--- Copy this ENTIRE script into Supabase SQL Editor and run it.
--- Safe to re-run (all statements use IF NOT EXISTS / guards).
--- ============================================================================
 
 -- Ensure UUID generation works
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -150,7 +147,3 @@ EXECUTE FUNCTION enforce_device_id_on_user_insert();
 
 
 COMMIT;
-
--- ============================================================================
--- ✅ DONE! All tables, columns, indexes, and constraints are now in place.
--- ============================================================================

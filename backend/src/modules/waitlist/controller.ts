@@ -3,7 +3,7 @@ import * as waitlistService from './service';
 import { CompleteTaskInput } from './schema';
 import { UnauthorizedError } from '../../shared/errors';
 
-const { completeTask, getTasksWithUserStatus, getUserStats, getServerTime, claimDailyReward } = waitlistService;
+const { completeTask, getTasksWithUserStatus, getUserStats, getServerTime, claimDailyReward, markNotificationsAsRead } = waitlistService;
 
 console.debug('[WAITLIST] Service module loading...');
 
@@ -13,6 +13,12 @@ const getAuthUser = async (req: FastifyRequest) => {
   if (!user?.id) throw new UnauthorizedError();
   return user;
 };
+
+export async function markNotificationsAsReadHandler(request: FastifyRequest, reply: FastifyReply) {
+  const { id } = await getAuthUser(request);
+  await markNotificationsAsRead(id);
+  return reply.send({ success: true });
+}
 
 export async function getTasksHandler(request: FastifyRequest, reply: FastifyReply) {
   const { id } = await getAuthUser(request);

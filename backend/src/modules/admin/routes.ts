@@ -223,7 +223,10 @@ export async function adminRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Admin"],
         summary: "Get all users under review",
-        querystring: z.object({}).passthrough(),
+        querystring: z.object({
+          page: z.coerce.number().default(1),
+          limit: z.coerce.number().default(20),
+        }),
       },
       preHandler: [requireAdmin],
     },
@@ -295,7 +298,10 @@ export async function adminRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Admin"],
         summary: "Find users sharing the same deviceId",
-        querystring: z.object({}).passthrough(),
+        querystring: z.object({
+          page: z.coerce.number().default(1),
+          limit: z.coerce.number().default(20),
+        }),
       },
       preHandler: [requireAdmin],
     },
@@ -308,7 +314,10 @@ export async function adminRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Admin"],
         summary: "Find users without a deviceId",
-        querystring: z.object({}).passthrough(),
+        querystring: z.object({
+          page: z.coerce.number().default(1),
+          limit: z.coerce.number().default(20),
+        }),
       },
       preHandler: [requireAdmin],
     },

@@ -22,12 +22,13 @@ import {
   Mail,
   Coins,
 } from 'lucide-react';
-import { getCurrentUser, logout, updateCurrentUser } from '../lib/waitlist-auth';
+import { getCurrentUser, logout, updateCurrentUser, refreshUserStats } from '../lib/waitlist-auth';
 import { getLevelInfo } from '../lib/waitlist-data';
 import type { User as UserType } from '../types/waitlist';
 import AnimatedBackground from './AnimatedBackground';
 import { getAvatarStyle, generateRandomAvatarSeed } from '../lib/avatars';
 import PXPSpinner from './PXPSpinner';
+import NotificationBell from './NotificationBell';
 
 interface WaitlistLayoutProps {
   children: ReactNode;
@@ -53,10 +54,17 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
         setUser(customEvent.detail);
       }
     };
+
+    const handleRefreshStats = () => {
+      refreshUserStats();
+    };
+
     window.addEventListener("penxchain:user-updated", handleUserUpdate);
+    window.addEventListener("penxchain:request-stats-refresh", handleRefreshStats);
 
     return () => {
       window.removeEventListener("penxchain:user-updated", handleUserUpdate);
+      window.removeEventListener("penxchain:request-stats-refresh", handleRefreshStats);
     };
   }, [router]);
 
@@ -332,17 +340,16 @@ export default function WaitlistLayout({ children }: WaitlistLayoutProps) {
       <main className="lg:ml-72 relative z-10">
         {/* Top Bar */}
         <div className="sticky top-0 z-30 bg-zinc-950/60 backdrop-blur-xl border-b border-zinc-800/60">
-          <div className="px-6 lg:px-8 py-4 flex items-center justify-between">
-            <div className="lg:hidden w-16" />
-            
-            <div className="flex items-center gap-4 ml-auto">
-              {/* PXP Display */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/60 border border-zinc-800/60 rounded-lg">
-                <Coins className="w-3.5 h-3.5 text-[#2547D0]" />
-                <span className="mono text-sm font-bold text-white">{user.points?.toLocaleString() ?? '0'}</span>
-                <span className="mono text-[10px] text-zinc-600">PXP</span>
+          <div className="px-6 lg:px-8 py-4 flex items-center justify-end">
+              {/* PXP Display & Notifications aligned to Right */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/60 border border-zinc-800/60 rounded-lg">
+                  <Coins className="w-3.5 h-3.5 text-[#2547D0]" />
+                  <span className="mono text-sm font-bold text-white">{user.points?.toLocaleString() ?? '0'}</span>
+                  <span className="mono text-[10px] text-zinc-600">PXP</span>
+                </div>
+                <NotificationBell notifications={user.notifications || []} />
               </div>
-            </div>
           </div>
         </div>
 

@@ -245,6 +245,13 @@ export default function AdminPage() {
 
   // --- Handlers ---
 
+  // Lightweight background stats refresh — doesn't touch loading or user table
+  const refreshStatsQuietly = () => {
+    apiRequest<Stats>("/admin/stats").then((res) => {
+      if (res.ok) setStats(res.data);
+    }).catch(() => {});
+  };
+
   const handleBan = async (id: string) => {
     const reason = prompt("Enter ban reason (min 5 characters):");
     if (!reason || reason.trim().length < 5) {
@@ -258,7 +265,10 @@ export default function AdminPage() {
         body: { reason: reason.trim() }
       });
       if (!result.ok) throw result.error;
-      fetchData();
+      // Optimistic: remove banned user from current list
+      setUsers(prev => prev.filter(u => u.id !== id));
+      setTotalUsers(prev => Math.max(0, prev - 1));
+      refreshStatsQuietly();
     } catch (err: any) {
       alert(err.message || "Failed to ban user");
     }
@@ -269,7 +279,14 @@ export default function AdminPage() {
     try {
       const result = await apiRequest(`/admin/users/${id}/unban`, { method: "POST" });
       if (!result.ok) throw result.error;
-      fetchData();
+      // Optimistic: remove from banned list (or update in-place for other tabs)
+      if (activeTab === 'banned') {
+        setUsers(prev => prev.filter(u => u.id !== id));
+        setTotalUsers(prev => Math.max(0, prev - 1));
+      } else {
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, isBanned: false, banReason: undefined, bannedAt: undefined, accountStatus: 'ACTIVE' } : u));
+      }
+      refreshStatsQuietly();
     } catch (err: any) {
       alert(err.message || "Failed to unban user");
     }
@@ -280,7 +297,8 @@ export default function AdminPage() {
     try {
       const result = await apiRequest(`/admin/users/${id}/promote`, { method: "POST" });
       if (!result.ok) throw result.error;
-      fetchData();
+      // Optimistic: update role in-place
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: 'ADMIN' } : u));
     } catch (err: any) {
       alert(err.message || "Promotion failed");
     }
@@ -291,7 +309,8 @@ export default function AdminPage() {
     try {
       const result = await apiRequest(`/admin/users/${id}/demote`, { method: "POST" });
       if (!result.ok) throw result.error;
-      fetchData();
+      // Optimistic: update role in-place
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: 'USER' } : u));
     } catch (err: any) {
       alert(err.message || "Demotion failed");
     }
@@ -302,7 +321,8 @@ export default function AdminPage() {
     try {
       const result = await apiRequest(`/admin/users/${id}/promote-super`, { method: "POST" });
       if (!result.ok) throw result.error;
-      fetchData();
+      // Optimistic: update role in-place
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: 'SUPERADMIN' } : u));
     } catch (err: any) {
       alert(err.message || "Super promotion failed");
     }
@@ -311,6 +331,7 @@ export default function AdminPage() {
   const handleTaskDelete = async (id: string) => {
     if (!confirm("Delete this task? Cannot be undone.")) return;
     const originalTasks = [...tasks];
+    // Optimistic: remove immediately
     setTasks(prev => prev.filter(t => t.id !== id));
 
     try {
@@ -318,25 +339,29 @@ export default function AdminPage() {
       if (!result.ok) {
         setTasks(originalTasks);
         alert('Failed to delete task: ' + (result.error?.message || 'Unknown error'));
-        return;
       }
     } catch (err: any) {
       setTasks(originalTasks);
       alert('Failed to delete task: ' + (err?.message || 'Network error'));
-      return;
     }
-    fetchData(); // Refresh to be safe
   };
 
   const handleTaskToggle = async (task: Task) => {
+    // Optimistic: toggle immediately
+    const originalTasks = [...tasks];
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isActive: !t.isActive } : t));
+    
     try {
       const result = await apiRequest(`/admin/waitlist/tasks/${task.id}`, {
         method: "PUT",
         body: { isActive: !task.isActive },
       });
-      if (!result.ok) throw result.error;
-      fetchData();
+      if (!result.ok) {
+        setTasks(originalTasks); // Rollback on failure
+        throw result.error;
+      }
     } catch (err: any) {
+      setTasks(originalTasks);
       alert(err.message || "Failed to toggle task");
     }
   };
@@ -363,6 +388,7 @@ export default function AdminPage() {
       });
       if (!res.ok) throw res.error;
       alert(`Success: ${res.data.count} users banned.`);
+      // Mass ban affects multiple rows — do a background table refresh
       fetchData();
     } catch (err: any) {
       alert(err.message || "Failed to ban device users");
@@ -377,6 +403,7 @@ export default function AdminPage() {
       });
       if (!res.ok) throw res.error;
       alert(`Success: ${res.data.count} users banned. ${res.data.message}`);
+      // Mass ban affects multiple rows — do a background table refresh
       fetchData();
     } catch (err: any) {
       alert(err.message || "Failed to mass ban no-device users");
@@ -603,7 +630,7 @@ export default function AdminPage() {
 
             {/* SEARCH BAR & TABS */}
             <div className="flex flex-col gap-4 w-full md:w-auto">
-              <div className="flex items-center gap-2 p-1 bg-zinc-900/50 rounded-lg border border-white/5 self-start">
+              <div className="flex items-center gap-2 p-1 bg-zinc-900/50 rounded-lg border border-white/5 self-start max-w-full overflow-x-auto scrollbar-hide no-scrollbar pr-4">
                 {[
                   { id: 'users', label: 'All Users', icon: Users },
                   { id: 'under_review', label: 'Under Review', icon: AlertTriangle },
@@ -614,7 +641,7 @@ export default function AdminPage() {
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id as TabType); setPage(1); }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0 ${
                       activeTab === tab.id
                         ? "bg-[#2547D0] text-white shadow-lg shadow-[#2547D0]/20"
                         : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"

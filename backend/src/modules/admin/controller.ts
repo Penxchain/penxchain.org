@@ -145,7 +145,8 @@ export async function getUnderReviewUsersHandler(
   request: any,
   reply: any,
 ) {
-  const { page = 1, limit = 20 } = request.query || {};
+  const page = Number(request.query?.page) || 1;
+  const limit = Number(request.query?.limit) || 20;
   const data = await getUnderReviewUsers(page, limit);
   return reply.send({ success: true, ...data });
 }
@@ -201,7 +202,8 @@ export async function getDeviceDuplicatesHandler(
   request: any,
   reply: any,
 ) {
-  const { page = 1, limit = 20 } = request.query || {};
+  const page = Number(request.query?.page) || 1;
+  const limit = Number(request.query?.limit) || 20;
   const skip = (page - 1) * limit;
 
   // 1. Get total groups count
@@ -240,7 +242,8 @@ export async function getNoDeviceUsersHandler(
   request: any,
   reply: any,
 ) {
-  const { page = 1, limit = 20 } = request.query || {};
+  const page = Number(request.query?.page) || 1;
+  const limit = Number(request.query?.limit) || 20;
   const skip = (page - 1) * limit;
 
   const [users, total] = await Promise.all([
