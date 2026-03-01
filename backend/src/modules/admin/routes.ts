@@ -25,6 +25,8 @@ import {
   getAuthSecurityOverviewHandler,
   getAuthSecurityEventsHandler,
   runAuthCleanupHandler,
+  getRecaptchaHealthHandler,
+  verifyRecaptchaTokenHandler,
 } from "./controller";
 import { requireAdmin, requireSuperAdmin } from "./middleware";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -90,6 +92,36 @@ export async function adminRoutes(app: FastifyInstance) {
       preHandler: [requireSuperAdmin],
     },
     runAuthCleanupHandler,
+  );
+
+  server.get(
+    "/auth/recaptcha/health",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Get reCAPTCHA runtime health and configuration status",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireSuperAdmin],
+    },
+    getRecaptchaHealthHandler,
+  );
+
+  server.post(
+    "/auth/recaptcha/verify",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Verify a reCAPTCHA token manually for diagnostics",
+        body: z.object({
+          token: z.string().min(10),
+          action: z.enum(["signup", "login"]),
+        }),
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireSuperAdmin],
+    },
+    verifyRecaptchaTokenHandler,
   );
 
   server.get(

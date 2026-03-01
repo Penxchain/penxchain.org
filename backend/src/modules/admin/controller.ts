@@ -16,6 +16,8 @@ import {
   getUserPXPHistory,
   getAuthSecurityOverview,
   getAuthSecurityEvents,
+  getRecaptchaHealth,
+  verifyRecaptchaToken,
 } from "./service";
 import z from "zod";
 import { runRefreshTokenCleanupNow } from "../auth/cleanup";
@@ -62,6 +64,26 @@ export async function runAuthCleanupHandler(
 ) {
   const result = await runRefreshTokenCleanupNow();
   return reply.send({ success: true, ...result });
+}
+
+export async function getRecaptchaHealthHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const data = getRecaptchaHealth();
+  return reply.send({ success: true, ...data });
+}
+
+export async function verifyRecaptchaTokenHandler(
+  request: any,
+  reply: any,
+) {
+  const token = String(request.body?.token || "");
+  const action = (request.body?.action || "login") as "signup" | "login";
+  const remoteIp = request.ip as string | undefined;
+
+  const data = await verifyRecaptchaToken(token, action, remoteIp);
+  return reply.send({ success: true, ...data });
 }
 
 const querySchema = z.object({

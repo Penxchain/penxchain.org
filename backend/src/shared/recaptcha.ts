@@ -1,6 +1,6 @@
 /**
- * reCAPTCHA v3 Verification Utility
- * 
+ * reCAPTCHA v3 Verification Utility.
+ *
  * Verifies tokens with Google's siteverify API and returns the score.
  * Tokens should be verified on each protected action (signup, login).
  */
@@ -15,6 +15,12 @@ interface RecaptchaResponse {
   hostname?: string;
   'error-codes'?: string[];
 }
+
+type RecaptchaHostnamePolicy = {
+  allowAll: boolean;
+  exact: Set<string>;
+  wildcardSuffixes: string[];
+};
 
 function mapRecaptchaErrorCodes(errorCodes: string[] | undefined) {
   if (!errorCodes || errorCodes.length === 0) {
@@ -43,24 +49,78 @@ function mapRecaptchaErrorCodes(errorCodes: string[] | undefined) {
   return "Invalid verification token";
 }
 
-function getAllowedRecaptchaHostnames() {
+function normalizeHostnameCandidate(candidate: string) {
+  const trimmed = candidate.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  try {
+    return new URL(trimmed).hostname.toLowerCase();
+  } catch {
+    // Allow raw hostname entries like penxchain.org or *.example.com
+    return trimmed.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  }
+}
+
+function getRecaptchaHostnamePolicy(): RecaptchaHostnamePolicy {
   const candidates = [
     env.FRONTEND_URL,
     ...(env.FRONTEND_URLS ? env.FRONTEND_URLS.split(",") : []),
-  ]
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .filter((s) => s !== "*");
+  ].map((s) => s.trim()).filter(Boolean);
 
-  const hostnames = new Set<string>();
+  let allowAll = false;
+  const exact = new Set<string>();
+  const wildcardSuffixes: string[] = [];
+
   for (const candidate of candidates) {
-    try {
-      hostnames.add(new URL(candidate).hostname.toLowerCase());
-    } catch {
-      // ignore invalid entries
+    if (candidate === "*") {
+      allowAll = true;
+      continue;
     }
+
+    const normalized = normalizeHostnameCandidate(candidate);
+    if (!normalized) continue;
+
+    if (normalized.startsWith("*.")) {
+      const suffix = normalized.slice(2);
+      if (suffix) wildcardSuffixes.push(suffix);
+      continue;
+    }
+
+    exact.add(normalized);
   }
-  return hostnames;
+
+  return {
+    allowAll,
+    exact,
+    wildcardSuffixes,
+  };
+}
+
+function isHostnameAllowed(hostname: string, policy: RecaptchaHostnamePolicy) {
+  if (policy.allowAll) return true;
+
+  const tokenHostname = hostname.toLowerCase();
+  if (policy.exact.has(tokenHostname)) return true;
+
+  return policy.wildcardSuffixes.some(
+    (suffix) =>
+      tokenHostname === suffix || tokenHostname.endsWith(`.${suffix}`),
+  );
+}
+
+export function getRecaptchaRuntimeHealth() {
+  const policy = getRecaptchaHostnamePolicy();
+  const allowedHostnames = [
+    ...Array.from(policy.exact),
+    ...policy.wildcardSuffixes.map((s) => `*.${s}`),
+  ];
+  return {
+    secretConfigured: Boolean(env.RECAPTCHA_SECRET_KEY),
+    minScore: RECAPTCHA_MIN_SCORE,
+    allowedHostnames,
+    allowAllHostnames: policy.allowAll,
+    nodeEnv: env.NODE_ENV,
+  };
 }
 
 /**
@@ -145,12 +205,16 @@ export async function verifyRecaptcha(
     }
 
     // Verify token hostname belongs to configured frontend(s)
-    const allowedHostnames = getAllowedRecaptchaHostnames();
-    if (data.hostname && allowedHostnames.size > 0) {
+    const policy = getRecaptchaHostnamePolicy();
+    if (data.hostname && (policy.allowAll || policy.exact.size > 0 || policy.wildcardSuffixes.length > 0)) {
       const tokenHostname = data.hostname.toLowerCase();
-      if (!allowedHostnames.has(tokenHostname)) {
+      if (!isHostnameAllowed(tokenHostname, policy)) {
+        const allowedPreview = [
+          ...Array.from(policy.exact),
+          ...policy.wildcardSuffixes.map((s) => `*.${s}`),
+        ].join(",");
         console.warn(
-          `[RECAPTCHA] Hostname mismatch: token=${tokenHostname}, allowed=${Array.from(allowedHostnames).join(",")}`,
+          `[RECAPTCHA] Hostname mismatch: token=${tokenHostname}, allowed=${allowedPreview || "none"}, allowAll=${policy.allowAll}`,
         );
         return { success: false, score: 0, error: "Verification domain mismatch" };
       }

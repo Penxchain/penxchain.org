@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api-client";
 import WaitlistLayout from "../../wallet-waitlist/components/WaitlistLayout";
+import ReCaptchaWrapper from "../../wallet-waitlist/components/ReCaptchaWrapper";
+import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 
 type OverviewResponse = {
   success: boolean;
@@ -48,6 +50,7 @@ type EventsResponse = {
 };
 
 export default function AuthObservabilityPage() {
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
@@ -59,6 +62,21 @@ export default function AuthObservabilityPage() {
   const [hours, setHours] = useState(24);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [recaptchaHealth, setRecaptchaHealth] = useState<{
+    secretConfigured: boolean;
+    minScore: number;
+    allowedHostnames: string[];
+    allowAllHostnames?: boolean;
+    nodeEnv: string;
+  } | null>(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{
+    success: boolean;
+    score: number;
+    pass: boolean;
+    threshold: number;
+    error?: string;
+  } | null>(null);
 
   useEffect(() => {
     try {
@@ -115,6 +133,23 @@ export default function AuthObservabilityPage() {
     setError("");
     try {
       await Promise.all([fetchOverview(), fetchEvents()]);
+      const recaptchaRes = await apiRequest<{
+        success: boolean;
+        secretConfigured: boolean;
+        minScore: number;
+        allowedHostnames: string[];
+        allowAllHostnames?: boolean;
+        nodeEnv: string;
+      }>("/admin/auth/recaptcha/health");
+      if (recaptchaRes.ok) {
+        setRecaptchaHealth({
+          secretConfigured: recaptchaRes.data.secretConfigured,
+          minScore: recaptchaRes.data.minScore,
+          allowedHostnames: recaptchaRes.data.allowedHostnames,
+          allowAllHostnames: recaptchaRes.data.allowAllHostnames,
+          nodeEnv: recaptchaRes.data.nodeEnv,
+        });
+      }
     } catch (err: any) {
       setError(err?.message || "Failed to load auth observability.");
     } finally {
@@ -146,6 +181,47 @@ export default function AuthObservabilityPage() {
       alert(err?.message || "Cleanup failed");
     } finally {
       setCleanupLoading(false);
+    }
+  };
+
+  const verifyRecaptchaNow = async (action: "signup" | "login") => {
+    if (!executeRecaptcha) {
+      alert("reCAPTCHA is not initialized in this browser.");
+      return;
+    }
+
+    setVerifyLoading(true);
+    setVerifyResult(null);
+    try {
+      const token = await executeRecaptcha(action);
+      const response = await apiRequest<{
+        success: boolean;
+        score: number;
+        pass: boolean;
+        threshold: number;
+        error?: string;
+      }>("/admin/auth/recaptcha/verify", {
+        method: "POST",
+        body: { token, action },
+      });
+      if (!response.ok) throw response.error;
+      setVerifyResult({
+        success: true,
+        score: response.data.score,
+        pass: response.data.pass,
+        threshold: response.data.threshold,
+        error: response.data.error,
+      });
+    } catch (err: any) {
+      setVerifyResult({
+        success: false,
+        score: 0,
+        pass: false,
+        threshold: recaptchaHealth?.minScore ?? 0.6,
+        error: err?.message || "Verification failed",
+      });
+    } finally {
+      setVerifyLoading(false);
     }
   };
 
@@ -264,6 +340,93 @@ export default function AuthObservabilityPage() {
           </div>
         </div>
 
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-white font-semibold">reCAPTCHA Diagnostics</p>
+            <div className="flex items-center gap-2">
+              <button
+                className="px-3 py-1.5 text-xs border border-zinc-700 rounded text-zinc-300"
+                onClick={() => void fetchAll()}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Secret Configured</p>
+              <p className={recaptchaHealth?.secretConfigured ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"}>
+                {recaptchaHealth?.secretConfigured ? "YES" : "NO"}
+              </p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Backend Env</p>
+              <p className="text-zinc-200 font-semibold">{recaptchaHealth?.nodeEnv || "-"}</p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Threshold</p>
+              <p className="text-zinc-200 font-semibold">{recaptchaHealth?.minScore ?? "-"}</p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Allowed Hostnames</p>
+              <p className="text-zinc-200 text-xs">
+                {(recaptchaHealth?.allowedHostnames || []).join(", ") || "none"}
+              </p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Hostname Policy</p>
+              <p className="text-zinc-200 text-xs">
+                {recaptchaHealth?.allowAllHostnames ? "allow-all (*)" : "strict allowlist"}
+              </p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Frontend Site Key</p>
+              <p
+                className={
+                  process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim()
+                    ? "text-emerald-400 font-semibold"
+                    : "text-red-400 font-semibold"
+                }
+              >
+                {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ? "SET" : "MISSING"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              disabled={verifyLoading}
+              onClick={() => void verifyRecaptchaNow("login")}
+              className="px-3 py-2 text-xs rounded-md bg-[#2547D0] text-white disabled:opacity-60"
+            >
+              {verifyLoading ? "Verifying..." : "Verify Login Token"}
+            </button>
+            <button
+              disabled={verifyLoading}
+              onClick={() => void verifyRecaptchaNow("signup")}
+              className="px-3 py-2 text-xs rounded-md border border-zinc-700 text-zinc-200 disabled:opacity-60"
+            >
+              Verify Signup Token
+            </button>
+          </div>
+
+          {verifyResult && (
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-3 text-sm">
+              <p className="text-zinc-200">
+                score: <span className="font-semibold">{verifyResult.score}</span>, threshold:{" "}
+                <span className="font-semibold">{verifyResult.threshold}</span>, pass:{" "}
+                <span className={verifyResult.pass ? "text-emerald-400" : "text-red-400"}>
+                  {verifyResult.pass ? "YES" : "NO"}
+                </span>
+              </p>
+              {verifyResult.error && (
+                <p className="text-red-400 text-xs mt-1">error: {verifyResult.error}</p>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
             <p className="text-white font-semibold">Recent Auth Security Events</p>
@@ -334,5 +497,13 @@ export default function AuthObservabilityPage() {
         {error && <p className="text-red-400 text-sm">{error}</p>}
       </div>
     </WaitlistLayout>
+  );
+}
+
+export default function AuthObservabilityPageWrapped() {
+  return (
+    <ReCaptchaWrapper>
+      <AuthObservabilityPage />
+    </ReCaptchaWrapper>
   );
 }

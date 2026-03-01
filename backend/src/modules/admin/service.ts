@@ -2,6 +2,7 @@ import { db } from "../../shared/database/db";
 import { TaskType } from "@prisma/client";
 import { InternalServerError, NotFoundError, ForbiddenError } from "../../shared/errors";
 import { redisClient } from "../../shared/redis";
+import { getRecaptchaRuntimeHealth, verifyRecaptcha } from "../../shared/recaptcha";
 
 export async function getSystemStats() {
   try {
@@ -216,6 +217,23 @@ export async function getAuthSecurityEvents(params?: {
     console.error("[ADMIN] Database error in getAuthSecurityEvents:", err?.message);
     throw new InternalServerError();
   }
+}
+
+export function getRecaptchaHealth() {
+  return getRecaptchaRuntimeHealth();
+}
+
+export async function verifyRecaptchaToken(
+  token: string,
+  action: "signup" | "login",
+  remoteIp?: string,
+) {
+  const result = await verifyRecaptcha(token, action, remoteIp);
+  return {
+    ...result,
+    threshold: getRecaptchaRuntimeHealth().minScore,
+    pass: result.success && result.score >= getRecaptchaRuntimeHealth().minScore,
+  };
 }
 
 export async function getAllUsers(
