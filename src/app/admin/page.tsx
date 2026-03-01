@@ -534,6 +534,13 @@ export default function AdminPage() {
             </div>
             
             <div className="flex items-center gap-4">
+              <Link
+                href="/admin/auth-observability"
+                className="flex items-center gap-2 px-5 py-3 bg-[#2547D0]/10 border border-[#2547D0]/40 hover:border-[#2547D0] rounded-lg transition-all mono text-xs uppercase tracking-wider hover:bg-[#2547D0]/20"
+              >
+                <Shield className="w-4 h-4 text-[#2547D0]" />
+                <span className="text-zinc-200">Auth Observability</span>
+              </Link>
               <button
                 onClick={fetchData}
                 disabled={loading}

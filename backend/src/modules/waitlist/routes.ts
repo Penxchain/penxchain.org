@@ -16,7 +16,7 @@ export async function waitlistRoutes(app: FastifyInstance) {
       // Also ensure active user
       await requireActiveUser(request, reply);
     } catch (err) {
-      reply.send(err);
+      return reply.send(err);
     }
   });
   

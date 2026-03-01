@@ -95,8 +95,8 @@ function SignupContent() {
       setError("Acknowledge the protocol terms to proceed");
       return;
     }
-    if (password.length < 6) {
-      setError("Security key must be at least 6 characters");
+    if (password.length < 8) {
+      setError("Security key must be at least 8 characters");
       return;
     }
 

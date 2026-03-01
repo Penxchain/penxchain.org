@@ -22,6 +22,9 @@ import {
   banNoDeviceUsersHandler,
   getBannedUsersHandler,
   getUserPXPHistoryHandler,
+  getAuthSecurityOverviewHandler,
+  getAuthSecurityEventsHandler,
+  runAuthCleanupHandler,
 } from "./controller";
 import { requireAdmin, requireSuperAdmin } from "./middleware";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -43,6 +46,50 @@ export async function adminRoutes(app: FastifyInstance) {
       },
     },
     getStatsHandler,
+  );
+
+  server.get(
+    "/auth/overview",
+    {
+      schema: {
+        querystring: z.object({
+          hours: z.coerce.number().min(1).max(168).default(24),
+        }),
+        tags: ["Admin"],
+        summary: "Get auth security/session observability metrics",
+      },
+    },
+    getAuthSecurityOverviewHandler,
+  );
+
+  server.get(
+    "/auth/events",
+    {
+      schema: {
+        querystring: z.object({
+          page: z.coerce.number().default(1),
+          limit: z.coerce.number().default(20),
+          action: z.enum(["signup", "login", "refresh"]).optional(),
+          blockedOnly: z.coerce.boolean().optional(),
+        }),
+        tags: ["Admin"],
+        summary: "Get auth risk/security events (paginated)",
+      },
+    },
+    getAuthSecurityEventsHandler,
+  );
+
+  server.post(
+    "/auth/cleanup",
+    {
+      schema: {
+        tags: ["Admin"],
+        summary: "Run refresh-token cleanup immediately",
+        querystring: z.object({}).passthrough(),
+      },
+      preHandler: [requireSuperAdmin],
+    },
+    runAuthCleanupHandler,
   );
 
   server.get(

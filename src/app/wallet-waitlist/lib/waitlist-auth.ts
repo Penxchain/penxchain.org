@@ -106,6 +106,7 @@ export async function login(
     // Simple heuristic: if it looks like a wallet address (starts with 0x, long), verify signature.
     // Otherwise treat as identifier (email or username).
     const isWallet = identifierOrWallet.startsWith("0x") && identifierOrWallet.length > 30;
+    const deviceId = await getDeviceFingerprint();
     
     const body = !isWallet
       ? {
@@ -130,6 +131,7 @@ export async function login(
     const result = await apiRequest<any>("/auth/login", {
       method: "POST",
       body,
+      headers: deviceId ? { "X-Device-Id": deviceId } : undefined,
     });
 
     if (!result.ok) {
@@ -232,7 +234,7 @@ function calculateLevel(points: number): number {
 export async function signup(
   username: string,
   email: string,
-  password?: string,
+  password: string,
   referralCode?: string,
   recaptchaToken?: string, // Added for bot protection
 ): Promise<AuthResponse> {
@@ -304,7 +306,27 @@ export async function signup(
 
 // Logout function
 export function logout(): void {
+  apiRequest<any>("/auth/logout", {
+    method: "POST",
+    body: {},
+  }).catch(() => {
+    // best-effort logout on backend
+  });
   clearSession();
+}
+
+export async function logoutAllDevices(): Promise<{ success: boolean; error?: string }> {
+  const result = await apiRequest<any>("/auth/logout-all", {
+    method: "POST",
+    body: {},
+  });
+
+  if (!result.ok) {
+    return { success: false, error: result.error.message };
+  }
+
+  clearSession();
+  return { success: true };
 }
 
 // Get current user

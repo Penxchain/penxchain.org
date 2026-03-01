@@ -14,8 +14,11 @@ import {
   banUsersByDeviceId,
   banUsersWithNoDevice,
   getUserPXPHistory,
+  getAuthSecurityOverview,
+  getAuthSecurityEvents,
 } from "./service";
 import z from "zod";
+import { runRefreshTokenCleanupNow } from "../auth/cleanup";
 
 export async function getStatsHandler(
   request: FastifyRequest,
@@ -23,6 +26,42 @@ export async function getStatsHandler(
 ) {
   const stats = await getSystemStats();
   return reply.send(stats);
+}
+
+export async function getAuthSecurityOverviewHandler(
+  request: any,
+  reply: any,
+) {
+  const hours = Number(request.query?.hours) || 24;
+  const data = await getAuthSecurityOverview(hours);
+  return reply.send({ success: true, ...data });
+}
+
+export async function getAuthSecurityEventsHandler(
+  request: any,
+  reply: any,
+) {
+  const page = Number(request.query?.page) || 1;
+  const limit = Number(request.query?.limit) || 20;
+  const action = request.query?.action;
+  const blockedOnly =
+    request.query?.blockedOnly === true || request.query?.blockedOnly === "true";
+
+  const data = await getAuthSecurityEvents({
+    page,
+    limit,
+    action,
+    blockedOnly,
+  });
+  return reply.send({ success: true, ...data });
+}
+
+export async function runAuthCleanupHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const result = await runRefreshTokenCleanupNow();
+  return reply.send({ success: true, ...result });
 }
 
 const querySchema = z.object({

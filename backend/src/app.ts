@@ -50,11 +50,23 @@ export async function buildApp() {
     credentials: true,
     // Ensure preflight allows the methods and headers used by the frontend
     methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Requested-With',
+      'X-Device-Id',
+      'X-Geo-Country',
+      'X-Geo-Lat',
+      'X-Geo-Lon',
+    ],
     exposedHeaders: ['Content-Type', 'Authorization'],
   });
   await app.register(import('@fastify/jwt'), {
     secret: env.JWT_SECRET,
+    sign: {
+      expiresIn: env.ACCESS_TOKEN_TTL,
+    },
   });
 
   // Error handler
@@ -63,27 +75,27 @@ export async function buildApp() {
   // Routes
   app.register(async (instance: FastifyInstance) => {
     const { authRoutes } = await import('./modules/auth/routes');
-    authRoutes(instance);
+    await authRoutes(instance);
   }, { prefix: '/auth' });
 
   app.register(async (instance: FastifyInstance) => {
     const { waitlistRoutes } = await import('./modules/waitlist/routes');
-    waitlistRoutes(instance);
+    await waitlistRoutes(instance);
   }, { prefix: '/waitlist' });
 
   app.register(async (instance: FastifyInstance) => {
     const { leaderboardRoutes } = await import('./modules/leaderboard/routes');
-    leaderboardRoutes(instance);
+    await leaderboardRoutes(instance);
   }, { prefix: '/leaderboard' });
 
   app.register(async (instance: FastifyInstance) => {
     const { adminRoutes } = await import('./modules/admin/routes');
-    adminRoutes(instance);
+    await adminRoutes(instance);
   }, { prefix: '/admin' });
 
   app.register(async (instance: FastifyInstance) => {
     const { privateSaleRoutes } = await import('./modules/privatesale/routes');
-    privateSaleRoutes(instance);
+    await privateSaleRoutes(instance);
   }, { prefix: '/privatesale' });
 
   app.get('/', async () => ({

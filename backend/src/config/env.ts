@@ -17,6 +17,13 @@ const envSchema = z.object({
   PASSWORD_PEPPER: z.string().min(32, "PASSWORD_PEPPER must be at least 32 chars"),
   RECAPTCHA_SECRET_KEY: z.string().optional(), // reCAPTCHA v3 secret key
   PENALTY_WINDOW_MINUTES: z.coerce.number().min(1).max(1440).default(30), // Referral penalty aggregation window
+  ACCESS_TOKEN_TTL: z.string().default("12h"),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().min(1).max(90).default(30),
+  REFRESH_REVOKED_RETENTION_DAYS: z.coerce.number().min(1).max(180).default(30),
+  REFRESH_CLEANUP_INTERVAL_MINUTES: z.coerce.number().min(5).max(1440).default(30),
+  REFRESH_COOKIE_NAME: z.string().default("penx_rt"),
+  REFRESH_COOKIE_DOMAIN: z.string().optional(),
+  REFRESH_TOKEN_SECRET: z.string().min(64).optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

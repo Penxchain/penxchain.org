@@ -21,6 +21,13 @@ const envSchema = zod_1.z.object({
     PASSWORD_PEPPER: zod_1.z.string().min(32, "PASSWORD_PEPPER must be at least 32 chars"),
     RECAPTCHA_SECRET_KEY: zod_1.z.string().optional(),
     PENALTY_WINDOW_MINUTES: zod_1.z.coerce.number().min(1).max(1440).default(30),
+    ACCESS_TOKEN_TTL: zod_1.z.string().default("12h"),
+    REFRESH_TOKEN_TTL_DAYS: zod_1.z.coerce.number().min(1).max(90).default(30),
+    REFRESH_REVOKED_RETENTION_DAYS: zod_1.z.coerce.number().min(1).max(180).default(30),
+    REFRESH_CLEANUP_INTERVAL_MINUTES: zod_1.z.coerce.number().min(5).max(1440).default(30),
+    REFRESH_COOKIE_NAME: zod_1.z.string().default("penx_rt"),
+    REFRESH_COOKIE_DOMAIN: zod_1.z.string().optional(),
+    REFRESH_TOKEN_SECRET: zod_1.z.string().min(64).optional(),
 });
 const _env = envSchema.safeParse(process.env);
 if (!_env.success) {

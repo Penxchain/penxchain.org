@@ -7,8 +7,8 @@ const penalty_service_1 = require("../modules/admin/penalty.service");
 async function requireActiveUser(request, reply) {
     try {
         const jwtUser = request.user;
-        if (!jwtUser?.id) {
-            throw new errors_1.UnauthorizedError();
+        if (!jwtUser?.id || !Number.isInteger(jwtUser.tokenVersion)) {
+            throw new errors_1.UnauthorizedError("Session invalidated. Please log in again.");
         }
         const user = await db_1.db.user.findFirst({
             where: { id: jwtUser.id },
@@ -23,12 +23,12 @@ async function requireActiveUser(request, reply) {
         if (!user) {
             throw new errors_1.UnauthorizedError("User not found");
         }
-        if (typeof jwtUser.tokenVersion === "number" && user.tokenVersion !== jwtUser.tokenVersion) {
+        if (user.tokenVersion !== jwtUser.tokenVersion) {
             throw new errors_1.UnauthorizedError("Session invalidated. Please log in again.");
         }
         if (user.isBanned || user.accountStatus === "BANNED") {
             const reason = user.banReason || "Account suspended";
-            throw new errors_1.ForbiddenError(`Account banned: ${reason}. Contact support@penxchain.com if you believe this is an error.`);
+            throw new errors_1.ForbiddenError(`Account banned: ${reason}. Contact support@penxchain.org if you believe this is an error.`);
         }
         if (user.accountStatus === "UNDER_REVIEW") {
             if (user.reviewEndsAt && new Date() >= user.reviewEndsAt) {

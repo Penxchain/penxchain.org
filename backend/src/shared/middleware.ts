@@ -12,10 +12,10 @@ export async function requireActiveUser(
     // Ensure we have a user from JWT (usually populated by request.jwtVerify() before this)
     const jwtUser = request.user as { id: string; tokenVersion?: number } | undefined;
 
-    if (!jwtUser?.id) {
+    if (!jwtUser?.id || !Number.isInteger(jwtUser.tokenVersion)) {
        // If no user is attached, we can't check status. 
        // Assuming this middleware is used AFTER auth/verifyJwt
-       throw new UnauthorizedError();
+       throw new UnauthorizedError("Session invalidated. Please log in again.");
     }
 
     const user = await db.user.findFirst({
@@ -34,7 +34,7 @@ export async function requireActiveUser(
     }
 
     // Token version check — kill stale sessions (Fix #3 session invalidation)
-    if (typeof jwtUser.tokenVersion === "number" && user.tokenVersion !== jwtUser.tokenVersion) {
+    if (user.tokenVersion !== jwtUser.tokenVersion) {
       throw new UnauthorizedError("Session invalidated. Please log in again.");
     }
 

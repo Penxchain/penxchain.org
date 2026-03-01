@@ -1,6 +1,8 @@
+import bcrypt from "bcrypt";
+import { Prisma } from "@prisma/client";
+import { randomInt } from "crypto";
 import { db } from "../../shared/database/db";
 import { SignupInput, LoginInput } from "./schema";
-import bcrypt from "bcrypt";
 import { env } from "../../config/env";
 import {
   ConflictError,
@@ -8,150 +10,273 @@ import {
   InternalServerError,
   InvalidCredentialsError,
   AccountLockedError,
+  TooManyRequestsError,
 } from "../../shared/errors";
 import { verifyRecaptcha, RECAPTCHA_MIN_SCORE } from "../../shared/recaptcha";
-import { Prisma } from "@prisma/client";
 import { lazySettleIfDue } from "../admin/penalty.service";
+import {
+  clearLoginAttemptState,
+  getRemainingLoginBlockSeconds,
+  recordFailedLoginAttempt,
+} from "./throttle";
+import { evaluateAuthRisk, logAuthRiskEvent } from "./risk";
 
-// Normalize deviceId server-side to prevent spoofing via whitespace/case variants
+type AuthRequestContext = {
+  ip?: string;
+  userAgent?: string;
+  headers?: Record<string, unknown>;
+  deviceId?: string;
+};
+
+const BCRYPT_SALT_ROUNDS = 10;
+const DUMMY_BCRYPT_HASH =
+  "$2b$10$7EqJtq98hPqEX7fNZaFWoOHiD8WfY9qsK0kGugHgdGXN53BJ38qJm";
+const GENERIC_LOGIN_ERROR = "Invalid email or password. Please try again.";
+
+async function safeEvaluateRisk(
+  action: "signup" | "login",
+  context: {
+    identifier?: string;
+    userId?: string;
+    ip?: string;
+    userAgent?: string;
+    deviceId?: string;
+    headers?: Record<string, unknown>;
+  },
+) {
+  try {
+    return await evaluateAuthRisk({
+      action,
+      identifier: context.identifier,
+      userId: context.userId,
+      ip: context.ip,
+      userAgent: context.userAgent,
+      deviceId: context.deviceId,
+      headers: context.headers,
+    });
+  } catch {
+    return {
+      score: 0,
+      blocked: false,
+      requiresStepUp: false,
+      reasons: ["risk_eval_unavailable"],
+      metadata: {},
+    };
+  }
+}
+
+const loginUserSelect = {
+  id: true,
+  email: true,
+  password: true,
+  username: true,
+  walletAddress: true,
+  role: true,
+  pxpBalance: true,
+  referralCode: true,
+  createdAt: true,
+  lastBonusClaim: true,
+  dailyStreak: true,
+  lastActivityDate: true,
+  isBanned: true,
+  banReason: true,
+  bannedAt: true,
+  accountStatus: true,
+  reviewEndsAt: true,
+  tokenVersion: true,
+} as const;
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function normalizeOptionalString(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
 function normalizeDeviceId(raw: string | undefined | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim().toLowerCase();
   if (trimmed.length < 8 || trimmed.length > 128) return null;
-  // Reject obviously fake patterns
   if (/^0+$/.test(trimmed) || /^test/.test(trimmed)) return null;
   return trimmed;
 }
 
-// Generate referral code in format PNX-XXXXXX
-async function generateReferralCode(): Promise<string> {
+function normalizeReferralCode(raw: string | undefined) {
+  const value = raw?.trim().toUpperCase();
+  return value || null;
+}
+
+function getPepperedPassword(password: string) {
+  return password + env.PASSWORD_PEPPER;
+}
+
+async function assertHumanVerification(
+  token: string | undefined,
+  action: "signup" | "login",
+  requestIp?: string,
+) {
+  const tokenRequired = env.NODE_ENV === "production";
+
+  if (!token) {
+    if (tokenRequired) {
+      throw new BadRequestError("Security verification is required.");
+    }
+    return;
+  }
+
+  const { success, score, error } = await verifyRecaptcha(token, action, requestIp);
+  if (!success || score < RECAPTCHA_MIN_SCORE) {
+    throw new BadRequestError(
+      error || "Security verification failed. Please try again.",
+    );
+  }
+}
+
+function mapUniqueConstraintToConflict(
+  error: Prisma.PrismaClientKnownRequestError,
+) {
+  const target = (error.meta as { target?: string[] | string } | undefined)
+    ?.target;
+  const targetString = Array.isArray(target)
+    ? target.join(",")
+    : String(target || "");
+  const normalized = targetString.toLowerCase();
+
+  if (normalized.includes("email")) {
+    return new ConflictError("Email already registered");
+  }
+  if (normalized.includes("username")) {
+    return new ConflictError("Username already taken");
+  }
+  if (normalized.includes("walletaddress")) {
+    return new ConflictError("Wallet already linked");
+  }
+  if (normalized.includes("deviceid") || normalized.includes("unique_device_id")) {
+    return new ConflictError(
+      "You can no longer create another account on this device. Try logging in on your previous account.",
+    );
+  }
+
+  return new ConflictError("User already exists");
+}
+
+async function generateReferralCode() {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
   for (let attempt = 0; attempt < 5; attempt++) {
     let randomPart = "";
     for (let i = 0; i < 6; i++) {
-      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+      randomPart += chars.charAt(randomInt(chars.length));
     }
-    const code = `PNX-${randomPart}`;
 
-    const existing = await db.user.findFirst({
+    const code = `PNX-${randomPart}`;
+    const existing = await db.user.findUnique({
       where: { referralCode: code },
       select: { id: true },
     });
+
     if (!existing) return code;
   }
 
-  // Fallback deterministic value
   return `PNX-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 }
 
-// Helper to apply server-side pepper
-const getPepperedPassword = (password: string) =>
-  password + env.PASSWORD_PEPPER;
+export async function createUser(
+  input: SignupInput,
+  requestContext?: AuthRequestContext,
+) {
+  const signupRiskContext: AuthRequestContext = {
+    ip: requestContext?.ip,
+    userAgent: requestContext?.userAgent,
+    headers: requestContext?.headers,
+    deviceId: input.deviceId,
+  };
+  const signupRisk = await safeEvaluateRisk("signup", {
+    identifier: input.email,
+    ip: signupRiskContext.ip,
+    userAgent: signupRiskContext.userAgent,
+    deviceId: signupRiskContext.deviceId,
+    headers: signupRiskContext.headers,
+  });
 
-export async function createUser(input: SignupInput) {
-  const email = input.email.toLowerCase();
+  if (signupRisk.blocked) {
+    await logAuthRiskEvent(
+      {
+        action: "signup",
+        identifier: input.email,
+        ip: signupRiskContext.ip,
+        userAgent: signupRiskContext.userAgent,
+        deviceId: signupRiskContext.deviceId,
+        headers: signupRiskContext.headers,
+      },
+      signupRisk,
+    );
+    throw new TooManyRequestsError(
+      "Security policy blocked this request. Please try again later.",
+    );
+  }
 
-  // Normalize and enforce deviceId (before DB checks so it's in scope for transaction)
-  const normalizedDeviceId = normalizeDeviceId((input as any).deviceId);
+  if (signupRisk.requiresStepUp && !input.recaptchaToken) {
+    await logAuthRiskEvent(
+      {
+        action: "signup",
+        identifier: input.email,
+        ip: signupRiskContext.ip,
+        userAgent: signupRiskContext.userAgent,
+        deviceId: signupRiskContext.deviceId,
+        headers: signupRiskContext.headers,
+      },
+      signupRisk,
+    );
+    throw new BadRequestError("Additional security verification is required.");
+  }
 
-  
-  // Run all existence checks in parallel instead of sequentially (4 round trips → 1)
-  try {
-    const emailUser = await db.user.findUnique({ where: { email } });
-    if (emailUser) throw new ConflictError("Email already registered");
+  await assertHumanVerification(input.recaptchaToken, "signup", requestContext?.ip);
 
-    // Strict Device ID Check (using normalized value)
-    const existingDeviceUser = await db.user.findFirst({
+  const email = normalizeEmail(input.email);
+  const username = normalizeOptionalString(input.username);
+  const walletAddress = normalizeOptionalString(input.walletAddress);
+  const normalizedDeviceId = normalizeDeviceId(input.deviceId);
+  const normalizedReferralCode = normalizeReferralCode(input.referralCode);
+
+  if (normalizedDeviceId) {
+    const deviceOwner = await db.user.findFirst({
       where: { deviceId: normalizedDeviceId },
       select: { id: true },
     });
 
-    if (existingDeviceUser) {
+    if (deviceOwner) {
       throw new ConflictError(
-        "You can no longer create another account on this device. Try logging in on your previous account."
+        "You can no longer create another account on this device. Try logging in on your previous account.",
       );
     }
-
-    if (input.username) {
-      checks.push(
-        db.user.findUnique({ where: { username: input.username }, select: { id: true } })
-          .catch((e: any) => {
-            if (e?.code === "P2022") return null; // column missing — skip
-            throw e;
-          })
-      );
-    } else {
-      checks.push(Promise.resolve(null));
-    }
-
-    if (input.walletAddress) {
-      checks.push(
-        db.user.findUnique({ where: { walletAddress: input.walletAddress }, select: { id: true } })
-          .catch((e: any) => {
-            if (e?.code === "P2022") return null;
-            throw e;
-          })
-      );
-    } else {
-      checks.push(Promise.resolve(null));
-    }
-
-    const [emailUser, deviceUser, usernameUser, walletUser] = await Promise.all(checks);
-
-    if (emailUser) throw new ConflictError("Email already registered");
-    if (deviceUser) throw new ConflictError(
-      "You can no longer create another account on this device. Try logging in on your previous account."
-    );
-    if (usernameUser) throw new ConflictError("Username already taken");
-    if (walletUser) throw new ConflictError("Wallet already linked");
-  } catch (err: any) {
-    if (err instanceof ConflictError) throw err;
-    console.error("[AUTH] user existence check failed:", err?.message || err);
-    throw new InternalServerError();
   }
 
-  // === PARALLEL: referral lookup + password hash + referral code gen ===
-  // These are independent — run them all at once
-  const referralPromise = input.referralCode
-    ? db.user.findFirst({
-        where: { referralCode: input.referralCode },
-        select: { id: true },
-      })
-    : Promise.resolve(null);
-
-  const hashPromise = input.password
-    ? bcrypt.hash(getPepperedPassword(input.password), 10)
-    : Promise.resolve(null);
-
-  const codePromise = generateReferralCode();
-
-  const [referrer, hashedPassword, referralCode] = await Promise.all([
-    referralPromise,
-    hashPromise,
-    codePromise,
-  ]);
-
-  const referredById = referrer?.id ?? null;
-
-  // Create user and (if referred) perform one-time reward atomically
   try {
-    return await db.$transaction(async (tx) => {
-      const createData: any = {
-        walletAddress: input.walletAddress ?? undefined,
-        email: email, // use normalized email
-        username: input.username ?? null,
-        password: hashedPassword,
-        referredById,
-        // do NOT pre-fill pxpBalance for referral; apply reward after creation
-        referralCode,
-      };
-      // Use normalized deviceId
-      if (normalizedDeviceId) {
-        createData.deviceId = normalizedDeviceId;
-      }
+    const [referrer, hashedPassword, referralCode] = await Promise.all([
+      normalizedReferralCode
+        ? db.user.findUnique({
+            where: { referralCode: normalizedReferralCode },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+      bcrypt.hash(getPepperedPassword(input.password), BCRYPT_SALT_ROUNDS),
+      generateReferralCode(),
+    ]);
 
+    return await db.$transaction(async (tx: any) => {
       const created = await tx.user.create({
-        data: createData as any,
+        data: {
+          email,
+          username,
+          walletAddress,
+          password: hashedPassword,
+          referredById: referrer?.id ?? null,
+          referralCode,
+          ...(normalizedDeviceId ? { deviceId: normalizedDeviceId } : {}),
+        },
         select: {
           id: true,
           email: true,
@@ -164,221 +289,306 @@ export async function createUser(input: SignupInput) {
           referredBy: { select: { id: true, username: true } },
           createdAt: true,
           lastBonusClaim: true,
+          dailyStreak: true,
+          lastActivityDate: true,
+          isBanned: true,
+          banReason: true,
+          bannedAt: true,
+          tokenVersion: true,
+          newUserBonusGranted: true,
         },
       });
 
-      // Deferred Referral Rewards — new user gets 75 PXP instantly, referrer deferred until 3 tasks
+      let updatedBalance = created.pxpBalance;
       let wasReferred = false;
       let rewardsApplied: { newUser: number; referrer: string } | null = null;
 
-      if (referredById) {
-        // Guard: only apply signup bonus once (newUserBonusGranted is the source of truth)
-        const target = await (tx.user as any).findUnique({
+      if (created.referredById && !created.newUserBonusGranted) {
+        const bonusPoints = 75;
+        const updated = await tx.user.update({
           where: { id: created.id },
-          select: { newUserBonusGranted: true },
+          data: {
+            pxpBalance: { increment: bonusPoints },
+            newUserBonusGranted: true,
+          },
+          select: { pxpBalance: true },
         });
-        if (target && !target.newUserBonusGranted) {
-          const newUserBonus = 75;
 
-          // New user gets instant reward — NO referrer credit here
-          await (tx.user as any).update({
-            where: { id: created.id },
-            data: {
-              pxpBalance: { increment: newUserBonus },
-              newUserBonusGranted: true,
-            },
-          });
-
-          // Referrer reward is DEFERRED — credited when this user completes 3 tasks
-          // (handled in waitlist.service.ts completeTask via referrerBonusGranted flag)
-
-          wasReferred = true;
-          rewardsApplied = { newUser: newUserBonus, referrer: "deferred_until_3_tasks" };
-        }
+        updatedBalance = updated.pxpBalance;
+        wasReferred = true;
+        rewardsApplied = {
+          newUser: bonusPoints,
+          referrer: "deferred_until_3_tasks",
+        };
       }
 
-      // Return fresh created user with selected fields plus referral metadata
+      const { newUserBonusGranted: _newUserBonusGranted, ...safeCreated } = created;
+
       return {
-        ...created,
+        ...safeCreated,
+        pxpBalance: updatedBalance,
         wasReferred,
         rewardsApplied,
       };
     });
-  } catch (err: any) {
-    // Prisma unique constraint error
+  } catch (error: any) {
     if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2002"
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
     ) {
-      const target = (err.meta as any)?.target;
-      if (Array.isArray(target) && target.length) {
-        const field = target[0];
-        if (field === "email")
-          throw new ConflictError("Email already registered");
-        if (field === "username")
-          throw new ConflictError("Username already taken");
-        if (field === "walletAddress")
-          throw new ConflictError("Wallet already linked");
-      }
-      throw new ConflictError("User already exists");
+      throw mapUniqueConstraintToConflict(error);
     }
 
-    console.error("[AUTH] createUser transaction failed:", err?.message || err);
+    if (error instanceof ConflictError || error instanceof BadRequestError) {
+      throw error;
+    }
+
+    console.error("[AUTH] createUser failed:", error?.message || error);
     throw new InternalServerError();
+  } finally {
+    await logAuthRiskEvent(
+      {
+        action: "signup",
+        identifier: input.email,
+        ip: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+        deviceId: input.deviceId,
+        headers: requestContext?.headers,
+      },
+      signupRisk,
+    );
   }
 }
 
+async function recordFailure(identifier: string, requestIp?: string) {
+  try {
+    await recordFailedLoginAttempt(identifier, requestIp);
+  } catch {
+    // Non-fatal: do not leak internals or block auth flow.
+  }
+}
 
+async function clearFailures(identifier: string, requestIp?: string) {
+  try {
+    await clearLoginAttemptState(identifier, requestIp);
+  } catch {
+    // Non-fatal.
+  }
+}
 
-// ... existing imports ...
-
-export async function loginUser(input: LoginInput) {
-  let user: any = null;
-
-  // Support both `identifier` (new) and `email` (legacy) fields
-  // Prefer email/password login. Wallet login must be explicit.
-  const identifier = input.identifier || input.email;
-  const password = input.password;
-
-  if (identifier && password) {
-    const isEmail = identifier.includes("@");
-    const normalizedIdentifier = isEmail ? identifier.toLowerCase() : identifier;
-    
-    console.debug(`[AUTH] login attempt for ${normalizedIdentifier} (isEmail=${isEmail})`);
-
-    // PARALLEL EXECUTION: Verify ReCaptcha and lookup user simultaneously
-    const recaptchaPromise = input.recaptchaToken
-      ? verifyRecaptcha(input.recaptchaToken, 'login')
-      : Promise.resolve({ success: true, score: 1, error: undefined });
-
-    // Lookup by normalized email or username
-    const userPromise = db.user.findFirst({
-      where: isEmail 
-        ? { email: normalizedIdentifier }
-        : { username: normalizedIdentifier },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        username: true,
-        walletAddress: true,
-        role: true,
-        pxpBalance: true,
-        referralCode: true,
-        createdAt: true,
-        lastBonusClaim: true,
-        dailyStreak: true,
-        lastActivityDate: true,
-        isBanned: true,
-        banReason: true,
-        bannedAt: true,
-        accountStatus: true,
-        reviewEndsAt: true,
-        tokenVersion: true,
-      },
-    });
-
-    const [recaptchaResult, user] = await Promise.all([recaptchaPromise, userPromise]);
-
-    // 1. Check ReCaptcha Result
-    if (!recaptchaResult.success || (recaptchaResult.score !== undefined && recaptchaResult.score < RECAPTCHA_MIN_SCORE)) {
-      throw new BadRequestError(recaptchaResult.error || "Security verification failed. Please try again.");
-    }
-
-    // 2. Check User Existence
-    if (!user) {
-      console.debug(`[AUTH] no user found for identifier=${normalizedIdentifier}`);
-      throw new InvalidCredentialsError(
-        isEmail 
-          ? "No account found with this email" 
-          : "No account found with this username"
-      );
-    }
-    
-    // Check ban status immediately
-    if (user.isBanned || user.accountStatus === "BANNED") {
-      throw new InvalidCredentialsError(`Account suspended: ${user.banReason || "Violation of terms"}`);
-    }
-
-    // UNDER_REVIEW check — attempt lazy settlement if window expired (Fix #4)
-    if (user.accountStatus === "UNDER_REVIEW") {
-      if (user.reviewEndsAt && new Date() >= new Date(user.reviewEndsAt)) {
-        // Window expired — attempt lazy settlement
-        const settled = await lazySettleIfDue(user.id);
-        if (!settled) {
-          throw new AccountLockedError(user.reviewEndsAt);
-        }
-        // Fix #4: Re-read user after settlement — never trust stale data
-        const freshUser = await db.user.findUnique({
-          where: { id: user.id },
-          select: {
-            id: true, email: true, password: true, username: true,
-            walletAddress: true, role: true, pxpBalance: true,
-            referralCode: true, createdAt: true, lastBonusClaim: true,
-            dailyStreak: true, lastActivityDate: true,
-            isBanned: true, banReason: true, bannedAt: true,
-            accountStatus: true, reviewEndsAt: true, tokenVersion: true,
-          },
-        });
-        if (!freshUser || freshUser.isBanned || freshUser.accountStatus !== "ACTIVE") {
-          throw new AccountLockedError(null);
-        }
-        // Use fresh data for the rest of the login flow
-        Object.assign(user, freshUser);
-      } else {
-        // Still within review window — block login
-        throw new AccountLockedError(user.reviewEndsAt);
-      }
-    }
-
-    // Check password with pepper
-    if (user.password) {
-      const peppered = getPepperedPassword(password);
-      
-      let valid = await bcrypt.compare(peppered, user.password);
-
-      // If peppered check fails, check legacy un-peppered password and upgrade
-      if (!valid) {
-        const legacyValid = await bcrypt.compare(password, user.password);
-        if (legacyValid) {
-          // Fire-and-forget — don't block login for password upgrade
-          const newPepperedHash = bcrypt.hash(peppered, 10);
-          newPepperedHash.then((hash) => {
-            db.user.update({
-              where: { id: user.id },
-              data: { password: hash },
-              select: { id: true },
-            }).catch(() => { /* non-fatal */ });
-          });
-          valid = true;
-          console.log(
-            `[AUTH] Seamlessly upgraded password for user: ${user.email}`,
-          );
-        }
-      }
-
-      if (!valid) {
-        console.debug(
-          `[AUTH] password mismatch for identifier=${normalizedIdentifier} id=${user.id}`,
-        );
-        throw new InvalidCredentialsError("Incorrect password. Please try again.");
-      }
-    } else {
-      console.debug(`[AUTH] no password set for identifier=${normalizedIdentifier}`);
-      throw new InvalidCredentialsError("This account requires a different login method (e.g. Wallet/Social)");
-    }
-
-    return user;
+export async function loginUser(
+  input: LoginInput,
+  requestContext?: AuthRequestContext,
+) {
+  // Wallet flow intentionally unsupported on this endpoint until signature
+  // verification is implemented server-side.
+  if (input.walletAddress || input.signature) {
+    throw new BadRequestError(
+      "Wallet login is not enabled on this endpoint. Use email/username login.",
+    );
   }
 
-  // Wallet-based login (explicit): requires signature verification flow which
-  // is intentionally separate from email/password login.
-  throw new BadRequestError("Invalid login parameters. Email/Username and password required.");
+  const identifierRaw = (input.identifier || input.email || "").trim();
+  const password = input.password || "";
+
+  if (!identifierRaw || !password) {
+    throw new BadRequestError("Email/Username and password required.");
+  }
+
+  const isEmailLogin = identifierRaw.includes("@");
+  const normalizedIdentifier = isEmailLogin
+    ? identifierRaw.toLowerCase()
+    : identifierRaw;
+
+  const blockSeconds = await getRemainingLoginBlockSeconds(
+    normalizedIdentifier,
+    requestContext?.ip,
+  );
+  if (blockSeconds > 0) {
+    const minutes = Math.max(1, Math.ceil(blockSeconds / 60));
+    throw new TooManyRequestsError(
+      `Too many failed login attempts. Please try again in ${minutes} minute(s).`,
+    );
+  }
+
+  const loginRisk = await safeEvaluateRisk("login", {
+    identifier: normalizedIdentifier,
+    ip: requestContext?.ip,
+    userAgent: requestContext?.userAgent,
+    headers: requestContext?.headers,
+    deviceId: requestContext?.deviceId,
+  });
+
+  if (loginRisk.blocked) {
+    await logAuthRiskEvent(
+      {
+        action: "login",
+        identifier: normalizedIdentifier,
+        ip: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+        headers: requestContext?.headers,
+        deviceId: requestContext?.deviceId,
+      },
+      loginRisk,
+    );
+    throw new TooManyRequestsError(
+      "Security policy blocked this request. Please try again later.",
+    );
+  }
+
+  if (loginRisk.requiresStepUp && !input.recaptchaToken) {
+    await logAuthRiskEvent(
+      {
+        action: "login",
+        identifier: normalizedIdentifier,
+        ip: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+        headers: requestContext?.headers,
+        deviceId: requestContext?.deviceId,
+      },
+      loginRisk,
+    );
+    throw new BadRequestError("Additional security verification is required.");
+  }
+
+  let user = await Promise.all([
+    assertHumanVerification(input.recaptchaToken, "login", requestContext?.ip),
+    db.user.findFirst({
+      where: isEmailLogin
+        ? { email: normalizedIdentifier }
+        : { username: normalizedIdentifier },
+      select: loginUserSelect,
+    }),
+  ]).then(([, foundUser]) => foundUser);
+
+  if (!user) {
+    await bcrypt.compare(getPepperedPassword(password), DUMMY_BCRYPT_HASH);
+    await recordFailure(normalizedIdentifier, requestContext?.ip);
+    await logAuthRiskEvent(
+      {
+        action: "login",
+        identifier: normalizedIdentifier,
+        ip: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+        headers: requestContext?.headers,
+        deviceId: requestContext?.deviceId,
+      },
+      loginRisk,
+    );
+    throw new InvalidCredentialsError(GENERIC_LOGIN_ERROR);
+  }
+
+  if (user.isBanned || user.accountStatus === "BANNED") {
+    throw new InvalidCredentialsError(
+      `Account suspended: ${user.banReason || "Violation of terms"}`,
+    );
+  }
+
+  if (user.accountStatus === "UNDER_REVIEW") {
+    if (user.reviewEndsAt && new Date() >= new Date(user.reviewEndsAt)) {
+      const settled = await lazySettleIfDue(user.id);
+      if (!settled) {
+        throw new AccountLockedError(user.reviewEndsAt);
+      }
+
+      const refreshed = await db.user.findUnique({
+        where: { id: user.id },
+        select: loginUserSelect,
+      });
+
+      if (
+        !refreshed ||
+        refreshed.isBanned ||
+        refreshed.accountStatus !== "ACTIVE"
+      ) {
+        throw new AccountLockedError(null);
+      }
+
+      user = refreshed;
+    } else {
+      throw new AccountLockedError(user.reviewEndsAt);
+    }
+  }
+
+  if (!user.password) {
+    await recordFailure(normalizedIdentifier, requestContext?.ip);
+    await logAuthRiskEvent(
+      {
+        action: "login",
+        userId: user.id,
+        identifier: normalizedIdentifier,
+        ip: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+        headers: requestContext?.headers,
+        deviceId: requestContext?.deviceId,
+      },
+      loginRisk,
+    );
+    throw new InvalidCredentialsError(GENERIC_LOGIN_ERROR);
+  }
+
+  const peppered = getPepperedPassword(password);
+  let validPassword = await bcrypt.compare(peppered, user.password);
+  const userId = user.id;
+
+  if (!validPassword) {
+    const legacyValid = await bcrypt.compare(password, user.password);
+    if (legacyValid) {
+      validPassword = true;
+      bcrypt
+        .hash(peppered, BCRYPT_SALT_ROUNDS)
+        .then((hash) =>
+          db.user.update({
+            where: { id: userId },
+            data: { password: hash },
+            select: { id: true },
+          }),
+        )
+        .catch(() => {
+          // Non-fatal background upgrade.
+        });
+    }
+  }
+
+  if (!validPassword) {
+    await recordFailure(normalizedIdentifier, requestContext?.ip);
+    await logAuthRiskEvent(
+      {
+        action: "login",
+        userId: user.id,
+        identifier: normalizedIdentifier,
+        ip: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+        headers: requestContext?.headers,
+        deviceId: requestContext?.deviceId,
+      },
+      loginRisk,
+    );
+    throw new InvalidCredentialsError(GENERIC_LOGIN_ERROR);
+  }
+
+  await clearFailures(normalizedIdentifier, requestContext?.ip);
+  await logAuthRiskEvent(
+    {
+      action: "login",
+      userId: user.id,
+      identifier: normalizedIdentifier,
+      ip: requestContext?.ip,
+      userAgent: requestContext?.userAgent,
+      headers: requestContext?.headers,
+      deviceId: requestContext?.deviceId,
+    },
+    loginRisk,
+  );
+  return user;
 }
 
 export async function checkReferralCode(code: string) {
-  const user = await db.user.findFirst({
-    where: { referralCode: code },
+  const normalizedCode = normalizeReferralCode(code);
+  if (!normalizedCode) return false;
+
+  const user = await db.user.findUnique({
+    where: { referralCode: normalizedCode },
     select: { id: true },
   });
   return !!user;

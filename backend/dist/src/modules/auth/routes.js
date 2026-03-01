@@ -16,6 +16,12 @@ async function authRoutes(app) {
             summary: 'Register a new user',
             querystring: zod_1.default.object({}).passthrough(),
         },
+        config: {
+            rateLimit: {
+                max: 6,
+                timeWindow: '15 minutes',
+            },
+        },
     }, controller_1.signupHandler);
     server.post('/login', {
         schema: {
@@ -24,6 +30,12 @@ async function authRoutes(app) {
             summary: 'Login user',
             querystring: zod_1.default.object({}).passthrough(),
         },
+        config: {
+            rateLimit: {
+                max: 20,
+                timeWindow: '5 minutes',
+            },
+        },
     }, controller_1.loginHandler);
     server.get('/check-referral', {
         schema: {
@@ -31,6 +43,54 @@ async function authRoutes(app) {
             tags: ['Auth'],
             summary: 'Check if referral code is valid',
         },
+        config: {
+            rateLimit: {
+                max: 60,
+                timeWindow: '1 minute',
+            },
+        },
     }, controller_1.checkReferralHandler);
+    server.post('/refresh', {
+        schema: {
+            tags: ['Auth'],
+            summary: 'Rotate refresh token and issue a new access token',
+            body: zod_1.default.object({}).passthrough(),
+            querystring: zod_1.default.object({}).passthrough(),
+        },
+        config: {
+            rateLimit: {
+                max: 30,
+                timeWindow: '5 minutes',
+            },
+        },
+    }, controller_1.refreshSessionHandler);
+    server.post('/logout', {
+        schema: {
+            tags: ['Auth'],
+            summary: 'Revoke refresh token and clear session cookie',
+            body: zod_1.default.object({}).passthrough(),
+            querystring: zod_1.default.object({}).passthrough(),
+        },
+        config: {
+            rateLimit: {
+                max: 60,
+                timeWindow: '5 minutes',
+            },
+        },
+    }, controller_1.logoutHandler);
+    server.post('/logout-all', {
+        schema: {
+            tags: ['Auth'],
+            summary: 'Revoke all active sessions for the authenticated user',
+            body: zod_1.default.object({}).passthrough(),
+            querystring: zod_1.default.object({}).passthrough(),
+        },
+        config: {
+            rateLimit: {
+                max: 20,
+                timeWindow: '5 minutes',
+            },
+        },
+    }, controller_1.logoutAllHandler);
 }
 //# sourceMappingURL=routes.js.map

@@ -81,32 +81,44 @@ async function buildApp() {
         },
         credentials: true,
         methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'Accept',
+            'X-Requested-With',
+            'X-Device-Id',
+            'X-Geo-Country',
+            'X-Geo-Lat',
+            'X-Geo-Lon',
+        ],
         exposedHeaders: ['Content-Type', 'Authorization'],
     });
     await app.register(Promise.resolve().then(() => __importStar(require('@fastify/jwt'))), {
         secret: env_1.env.JWT_SECRET,
+        sign: {
+            expiresIn: env_1.env.ACCESS_TOKEN_TTL,
+        },
     });
     app.setErrorHandler(error_handler_1.errorHandler);
     app.register(async (instance) => {
         const { authRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/auth/routes')));
-        authRoutes(instance);
+        await authRoutes(instance);
     }, { prefix: '/auth' });
     app.register(async (instance) => {
         const { waitlistRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/waitlist/routes')));
-        waitlistRoutes(instance);
+        await waitlistRoutes(instance);
     }, { prefix: '/waitlist' });
     app.register(async (instance) => {
         const { leaderboardRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/leaderboard/routes')));
-        leaderboardRoutes(instance);
+        await leaderboardRoutes(instance);
     }, { prefix: '/leaderboard' });
     app.register(async (instance) => {
         const { adminRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/admin/routes')));
-        adminRoutes(instance);
+        await adminRoutes(instance);
     }, { prefix: '/admin' });
     app.register(async (instance) => {
         const { privateSaleRoutes } = await Promise.resolve().then(() => __importStar(require('./modules/privatesale/routes')));
-        privateSaleRoutes(instance);
+        await privateSaleRoutes(instance);
     }, { prefix: '/privatesale' });
     app.get('/', async () => ({
         status: 'operational',

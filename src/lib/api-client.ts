@@ -33,9 +33,29 @@ const USER_FRIENDLY_MESSAGES: Record<string, string> = {
   // Auth issues (keep vague for security)
   "Invalid credentials": "Invalid email or password. Please try again.",
   "Invalid email or password": "Invalid email or password. Please try again.",
+  "Invalid email or password. Please try again.":
+    "Invalid email or password. Please try again.",
   "Authentication required": "Please log in to continue.",
   "jwt expired": "Your session has expired. Please log in again.",
   "token expired": "Your session has expired. Please log in again.",
+  "Session expired. Please log in again.":
+    "Your session has expired. Please log in again.",
+  "Session invalidated. Please log in again.":
+    "Your session was refreshed elsewhere. Please log in again.",
+  "No refresh session found.":
+    "Your session has ended. Please log in again.",
+  "Email/Username and password required.":
+    "Email/username and password are required.",
+  "Wallet login is not enabled on this endpoint. Use email/username login.":
+    "Wallet login is not enabled yet. Use email/username login.",
+  "Additional security verification is required.":
+    "Additional security verification is required. Please try again.",
+  "Security verification is required.":
+    "Security verification is required. Please try again.",
+  "Security verification failed. Please try again.":
+    "Security verification failed. Please try again.",
+  "Security policy blocked this request. Please try again later.":
+    "We detected suspicious activity. Please try again later.",
 
   // Registration issues
   "Email already registered":
@@ -82,7 +102,10 @@ function getUserFriendlyMessage(message: string, status?: number): string {
       lowerMsg.includes("no account found") ||
       lowerMsg.includes("account suspended") ||
       lowerMsg.includes("invalid login parameters") ||
-      lowerMsg.includes("email/username and password required")
+      lowerMsg.includes("email/username and password required") ||
+      lowerMsg.includes("invalid email or password") ||
+      lowerMsg.includes("session invalidated") ||
+      lowerMsg.includes("session expired")
     ) {
       return message;
     }
@@ -90,7 +113,18 @@ function getUserFriendlyMessage(message: string, status?: number): string {
   }
   if (status === 403) {
     if (message.toLowerCase().includes("account banned")) return message;
-    return "⚠️🚨You don't have permission to do this.🚨⚠️";
+    return "You don't have permission to do this.";
+  }
+  if (status === 400) {
+    const lowerMsg = message.toLowerCase();
+    if (
+      lowerMsg.includes("required") ||
+      lowerMsg.includes("verification") ||
+      lowerMsg.includes("wallet login")
+    ) {
+      return message;
+    }
+    return "Please check your input and try again.";
   }
   if (status === 409) {
     if (message.includes("device")) return message;
@@ -118,24 +152,90 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 30_000,
+  withCredentials: true,
 });
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3002";
+const SESSION_STORAGE_KEY = "penxchain_waitlist_user";
+let refreshInFlight: Promise<string | null> | null = null;
+
+function readStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.token || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredToken(nextToken: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ ...parsed, token: nextToken }),
+    );
+    const ev = new CustomEvent("penxchain:user-updated", {
+      detail: { ...parsed, token: nextToken },
+    });
+    window.dispatchEvent(ev);
+  } catch {
+    // non-fatal
+  }
+}
+
+function shouldTryRefresh(status?: number, message?: string) {
+  if (status !== 401) return false;
+  const normalized = (message || "").toLowerCase();
+  return (
+    normalized.includes("token") ||
+    normalized.includes("jwt") ||
+    normalized.includes("authorization") ||
+    normalized.includes("session")
+  );
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/refresh`,
+        {},
+        {
+          withCredentials: true,
+          timeout: 15_000,
+        },
+      );
+      const token = response?.data?.token;
+      if (!token || typeof token !== "string") return null;
+      writeStoredToken(token);
+      return token;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
 
 /* REQUEST INTERCEPTOR */
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    if (typeof window !== "undefined") {
-      const session = localStorage.getItem("penxchain_waitlist_user");
-      if (session) {
-        try {
-          const { token } = JSON.parse(session);
-          if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-        } catch {
-          // silent fail — auth is optional here
-        }
-      }
+    const token = readStoredToken();
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -146,7 +246,30 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response: AxiosResponse) => response.data,
-  (error: AxiosError<{ message?: string }>) => {
+  async (error: AxiosError<{ message?: string }>) => {
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.message;
+    const originalRequest = error.config as
+      | (InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
+
+    if (
+      originalRequest &&
+      !originalRequest._retry &&
+      !String(originalRequest.url || "").includes("/auth/login") &&
+      !String(originalRequest.url || "").includes("/auth/refresh") &&
+      shouldTryRefresh(status, message)
+    ) {
+      originalRequest._retry = true;
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        (originalRequest.headers as any) =
+          originalRequest.headers || ({} as any);
+        (originalRequest.headers as any).Authorization = `Bearer ${refreshed}`;
+        return api.request(originalRequest);
+      }
+    }
+
     return Promise.reject(error);
   },
 );

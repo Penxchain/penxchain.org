@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.markNotificationsAsReadHandler = markNotificationsAsReadHandler;
 exports.getTasksHandler = getTasksHandler;
 exports.completeTaskHandler = completeTaskHandler;
 exports.getUserStatsHandler = getUserStatsHandler;
@@ -40,32 +41,36 @@ exports.claimBonusHandler = claimBonusHandler;
 exports.getTimeHandler = getTimeHandler;
 const waitlistService = __importStar(require("./service"));
 const errors_1 = require("../../shared/errors");
-const { completeTask, getTasksWithUserStatus, getUserStats, getServerTime, claimDailyReward } = waitlistService;
+const { completeTask, getTasksWithUserStatus, getUserStats, getServerTime, claimDailyReward, markNotificationsAsRead } = waitlistService;
 console.debug('[WAITLIST] Service module loading...');
-const getAuthUser = async (req) => {
-    await req.jwtVerify();
+const getAuthUser = (req) => {
     const user = req.user;
     if (!user?.id)
         throw new errors_1.UnauthorizedError();
     return user;
 };
+async function markNotificationsAsReadHandler(request, reply) {
+    const { id } = getAuthUser(request);
+    await markNotificationsAsRead(id);
+    return reply.send({ success: true });
+}
 async function getTasksHandler(request, reply) {
-    const { id } = await getAuthUser(request);
+    const { id } = getAuthUser(request);
     const tasks = await getTasksWithUserStatus(id);
     return reply.send({ success: true, tasks });
 }
 async function completeTaskHandler(request, reply) {
-    const { id } = await getAuthUser(request);
+    const { id } = getAuthUser(request);
     const result = await completeTask(id, request.body.taskId);
     return reply.send({ success: true, ...result });
 }
 async function getUserStatsHandler(request, reply) {
-    const { id } = await getAuthUser(request);
+    const { id } = getAuthUser(request);
     const stats = await getUserStats(id);
     return reply.send({ success: true, ...stats });
 }
 async function claimBonusHandler(request, reply) {
-    const { id } = await getAuthUser(request);
+    const { id } = getAuthUser(request);
     const result = await claimDailyReward(id);
     return reply.send(result);
 }

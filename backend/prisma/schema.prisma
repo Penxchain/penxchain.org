@@ -50,12 +50,61 @@ model User {
   adminPenaltyEvents ReferralPenaltyEvent[] @relation("AdminPenaltyEvents")
   notifications      Notification[]
   privateSaleOrders  PrivateSaleOrder[]
+  refreshTokens      RefreshToken[]
+  authSecurityEvents AuthSecurityEvent[]
 
   @@index([pxpBalance])
   @@index([createdAt])
   @@index([deviceId])
   @@index([accountStatus])
   @@index([reviewEndsAt])
+}
+
+model RefreshToken {
+  id                String   @id
+  userId            String
+  tokenHash         String   @unique
+  familyId          String
+  tokenVersion      Int
+  createdAt         DateTime @default(now())
+  lastUsedAt        DateTime?
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  revokedReason     String?
+  replacedByTokenId String?
+  createdByIpHash   String?
+  userAgentHash     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model AuthSecurityEvent {
+  id             String   @id @default(uuid())
+  userId         String?
+  identifierHash String?
+  action         String
+  ipHash         String?
+  deviceHash     String?
+  userAgentHash  String?
+  riskScore      Int      @default(0)
+  blocked        Boolean  @default(false)
+  reasons        Json?
+  latitude       Float?
+  longitude      Float?
+  countryCode    String?
+  createdAt      DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([identifierHash, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([action, createdAt])
 }
 
 model Task {

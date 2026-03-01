@@ -24,7 +24,8 @@ interface RecaptchaResponse {
  */
 export async function verifyRecaptcha(
   token: string,
-  expectedAction: string
+  expectedAction: string,
+  remoteIp?: string,
 ): Promise<{ success: boolean; score: number; error?: string }> {
   if (!env.RECAPTCHA_SECRET_KEY) {
     if (env.NODE_ENV === 'production') {
@@ -36,16 +37,32 @@ export async function verifyRecaptcha(
   }
 
   try {
-    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        secret: env.RECAPTCHA_SECRET_KEY,
-        response: token,
-      }).toString(),
+    const form = new URLSearchParams({
+      secret: env.RECAPTCHA_SECRET_KEY,
+      response: token,
     });
+
+    if (remoteIp) {
+      form.set("remoteip", remoteIp);
+    }
+
+    const controller = new AbortController();
+    const timeoutMs = 5000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: form.toString(),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       console.error('[RECAPTCHA] API request failed:', response.status);
@@ -86,6 +103,10 @@ export async function verifyRecaptcha(
 
     return { success: true, score };
   } catch (err: any) {
+    if (err?.name === "AbortError") {
+      console.error('[RECAPTCHA] Verification timed out');
+      return { success: false, score: 0, error: 'Verification timed out' };
+    }
     console.error('[RECAPTCHA] Verification error:', err?.message);
     return { success: false, score: 0, error: 'Verification failed' };
   }

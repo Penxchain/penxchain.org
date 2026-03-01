@@ -3,6 +3,10 @@ import { logger } from './shared/logger';
 import { env } from './config/env';
 import { db } from './shared/database/db';
 import { cleanupExpiredTasks } from './modules/admin/service';
+import {
+  runRefreshTokenCleanupNow,
+  startRefreshTokenCleanupWorker,
+} from './modules/auth/cleanup';
 
 async function start() {
   try {
@@ -20,6 +24,10 @@ async function start() {
     } catch (e) {
       logger.warn({ err: e }, "[STARTUP] Failed to cleanup expired tasks");
     }
+
+    // Cleanup stale refresh tokens on startup and schedule recurring cleanup.
+    await runRefreshTokenCleanupNow();
+    const stopRefreshCleanupWorker = startRefreshTokenCleanupWorker();
     
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
     logger.info(`Server listening on http://0.0.0.0:${env.PORT}`);
@@ -27,6 +35,7 @@ async function start() {
     // Graceful Shutdown
     const closeGracefully = async (signal: string) => {
       logger.info(`Received ${signal}. Closing server...`);
+      stopRefreshCleanupWorker();
       await app.close();
       await db.$disconnect();
       logger.info('Server and Database closed. Exiting.');

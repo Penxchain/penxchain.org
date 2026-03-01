@@ -7,21 +7,20 @@ const { completeTask, getTasksWithUserStatus, getUserStats, getServerTime, claim
 
 console.debug('[WAITLIST] Service module loading...');
 
-const getAuthUser = async (req: FastifyRequest) => {
-  await req.jwtVerify();
+const getAuthUser = (req: FastifyRequest) => {
   const user = req.user as { id: string; role: string };
   if (!user?.id) throw new UnauthorizedError();
   return user;
 };
 
 export async function markNotificationsAsReadHandler(request: FastifyRequest, reply: FastifyReply) {
-  const { id } = await getAuthUser(request);
+  const { id } = getAuthUser(request);
   await markNotificationsAsRead(id);
   return reply.send({ success: true });
 }
 
 export async function getTasksHandler(request: FastifyRequest, reply: FastifyReply) {
-  const { id } = await getAuthUser(request);
+  const { id } = getAuthUser(request);
   const tasks = await getTasksWithUserStatus(id);
   return reply.send({ success: true, tasks });
 }
@@ -30,20 +29,20 @@ export async function completeTaskHandler(
   request: FastifyRequest<{ Body: CompleteTaskInput }>,
   reply: FastifyReply
 ) {
-  const { id } = await getAuthUser(request);
+  const { id } = getAuthUser(request);
   // Services now throw proper AppError types that the global handler catches
   const result = await completeTask(id, request.body.taskId);
   return reply.send({ success: true, ...result });
 }
 
 export async function getUserStatsHandler(request: FastifyRequest, reply: FastifyReply) {
-  const { id } = await getAuthUser(request);
+  const { id } = getAuthUser(request);
   const stats = await getUserStats(id);
   return reply.send({ success: true, ...stats });
 }
 
 export async function claimBonusHandler(request: FastifyRequest, reply: FastifyReply) {
-  const { id } = await getAuthUser(request);
+  const { id } = getAuthUser(request);
   // Services now throw proper AppError types
   const result = await claimDailyReward(id);
   return reply.send(result);

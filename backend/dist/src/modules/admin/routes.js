@@ -17,6 +17,35 @@ async function adminRoutes(app) {
             querystring: zod_1.default.object({}).passthrough(),
         },
     }, controller_1.getStatsHandler);
+    server.get("/auth/overview", {
+        schema: {
+            querystring: zod_1.default.object({
+                hours: zod_1.default.coerce.number().min(1).max(168).default(24),
+            }),
+            tags: ["Admin"],
+            summary: "Get auth security/session observability metrics",
+        },
+    }, controller_1.getAuthSecurityOverviewHandler);
+    server.get("/auth/events", {
+        schema: {
+            querystring: zod_1.default.object({
+                page: zod_1.default.coerce.number().default(1),
+                limit: zod_1.default.coerce.number().default(20),
+                action: zod_1.default.enum(["signup", "login", "refresh"]).optional(),
+                blockedOnly: zod_1.default.coerce.boolean().optional(),
+            }),
+            tags: ["Admin"],
+            summary: "Get auth risk/security events (paginated)",
+        },
+    }, controller_1.getAuthSecurityEventsHandler);
+    server.post("/auth/cleanup", {
+        schema: {
+            tags: ["Admin"],
+            summary: "Run refresh-token cleanup immediately",
+            querystring: zod_1.default.object({}).passthrough(),
+        },
+        preHandler: [middleware_1.requireSuperAdmin],
+    }, controller_1.runAuthCleanupHandler);
     server.get("/users/banned", {
         schema: {
             querystring: zod_1.default.object({
@@ -130,7 +159,10 @@ async function adminRoutes(app) {
         schema: {
             tags: ["Admin"],
             summary: "Get all users under review",
-            querystring: zod_1.default.object({}).passthrough(),
+            querystring: zod_1.default.object({
+                page: zod_1.default.coerce.number().default(1),
+                limit: zod_1.default.coerce.number().default(20),
+            }),
         },
         preHandler: [middleware_1.requireAdmin],
     }, controller_1.getUnderReviewUsersHandler);
@@ -175,7 +207,10 @@ async function adminRoutes(app) {
         schema: {
             tags: ["Admin"],
             summary: "Find users sharing the same deviceId",
-            querystring: zod_1.default.object({}).passthrough(),
+            querystring: zod_1.default.object({
+                page: zod_1.default.coerce.number().default(1),
+                limit: zod_1.default.coerce.number().default(20),
+            }),
         },
         preHandler: [middleware_1.requireAdmin],
     }, controller_1.getDeviceDuplicatesHandler);
@@ -183,7 +218,10 @@ async function adminRoutes(app) {
         schema: {
             tags: ["Admin"],
             summary: "Find users without a deviceId",
-            querystring: zod_1.default.object({}).passthrough(),
+            querystring: zod_1.default.object({
+                page: zod_1.default.coerce.number().default(1),
+                limit: zod_1.default.coerce.number().default(20),
+            }),
         },
         preHandler: [middleware_1.requireAdmin],
     }, controller_1.getNoDeviceUsersHandler);

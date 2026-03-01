@@ -4,6 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getStatsHandler = getStatsHandler;
+exports.getAuthSecurityOverviewHandler = getAuthSecurityOverviewHandler;
+exports.getAuthSecurityEventsHandler = getAuthSecurityEventsHandler;
+exports.runAuthCleanupHandler = runAuthCleanupHandler;
 exports.getUsersHandler = getUsersHandler;
 exports.banUserHandler = banUserHandler;
 exports.unbanUserHandler = unbanUserHandler;
@@ -27,9 +30,32 @@ exports.banNoDeviceUsersHandler = banNoDeviceUsersHandler;
 exports.getUserPXPHistoryHandler = getUserPXPHistoryHandler;
 const service_1 = require("./service");
 const zod_1 = __importDefault(require("zod"));
+const cleanup_1 = require("../auth/cleanup");
 async function getStatsHandler(request, reply) {
     const stats = await (0, service_1.getSystemStats)();
     return reply.send(stats);
+}
+async function getAuthSecurityOverviewHandler(request, reply) {
+    const hours = Number(request.query?.hours) || 24;
+    const data = await (0, service_1.getAuthSecurityOverview)(hours);
+    return reply.send({ success: true, ...data });
+}
+async function getAuthSecurityEventsHandler(request, reply) {
+    const page = Number(request.query?.page) || 1;
+    const limit = Number(request.query?.limit) || 20;
+    const action = request.query?.action;
+    const blockedOnly = request.query?.blockedOnly === true || request.query?.blockedOnly === "true";
+    const data = await (0, service_1.getAuthSecurityEvents)({
+        page,
+        limit,
+        action,
+        blockedOnly,
+    });
+    return reply.send({ success: true, ...data });
+}
+async function runAuthCleanupHandler(request, reply) {
+    const result = await (0, cleanup_1.runRefreshTokenCleanupNow)();
+    return reply.send({ success: true, ...result });
 }
 const querySchema = zod_1.default.object({
     page: zod_1.default.coerce.number().default(1),
@@ -94,7 +120,8 @@ async function deleteTaskHandler(request, reply) {
 }
 const penalty_service_1 = require("./penalty.service");
 async function getUnderReviewUsersHandler(request, reply) {
-    const { page = 1, limit = 20 } = request.query || {};
+    const page = Number(request.query?.page) || 1;
+    const limit = Number(request.query?.limit) || 20;
     const data = await (0, penalty_service_1.getUnderReviewUsers)(page, limit);
     return reply.send({ success: true, ...data });
 }
@@ -129,7 +156,8 @@ async function extendReviewHandler(request, reply) {
 }
 const db_1 = require("../../shared/database/db");
 async function getDeviceDuplicatesHandler(request, reply) {
-    const { page = 1, limit = 20 } = request.query || {};
+    const page = Number(request.query?.page) || 1;
+    const limit = Number(request.query?.limit) || 20;
     const skip = (page - 1) * limit;
     const totalCountResult = await db_1.db.$queryRaw `
     SELECT COUNT(*)::int as total
@@ -158,7 +186,8 @@ async function getDeviceDuplicatesHandler(request, reply) {
     return reply.send({ success: true, duplicates: results, total });
 }
 async function getNoDeviceUsersHandler(request, reply) {
-    const { page = 1, limit = 20 } = request.query || {};
+    const page = Number(request.query?.page) || 1;
+    const limit = Number(request.query?.limit) || 20;
     const skip = (page - 1) * limit;
     const [users, total] = await Promise.all([
         db_1.db.user.findMany({

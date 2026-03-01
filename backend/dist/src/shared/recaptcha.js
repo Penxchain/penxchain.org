@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RECAPTCHA_MIN_SCORE = void 0;
 exports.verifyRecaptcha = verifyRecaptcha;
 const env_1 = require("../config/env");
-async function verifyRecaptcha(token, expectedAction) {
+async function verifyRecaptcha(token, expectedAction, remoteIp) {
     if (!env_1.env.RECAPTCHA_SECRET_KEY) {
         if (env_1.env.NODE_ENV === 'production') {
             console.error('[RECAPTCHA] CRITICAL: Secret key missing in production!');
@@ -13,16 +13,30 @@ async function verifyRecaptcha(token, expectedAction) {
         return { success: true, score: 1.0 };
     }
     try {
-        const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                secret: env_1.env.RECAPTCHA_SECRET_KEY,
-                response: token,
-            }).toString(),
+        const form = new URLSearchParams({
+            secret: env_1.env.RECAPTCHA_SECRET_KEY,
+            response: token,
         });
+        if (remoteIp) {
+            form.set("remoteip", remoteIp);
+        }
+        const controller = new AbortController();
+        const timeoutMs = 5000;
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        let response;
+        try {
+            response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: form.toString(),
+                signal: controller.signal,
+            });
+        }
+        finally {
+            clearTimeout(timeout);
+        }
         if (!response.ok) {
             console.error('[RECAPTCHA] API request failed:', response.status);
             return { success: false, score: 0, error: 'Verification service unavailable' };
@@ -52,6 +66,10 @@ async function verifyRecaptcha(token, expectedAction) {
         return { success: true, score };
     }
     catch (err) {
+        if (err?.name === "AbortError") {
+            console.error('[RECAPTCHA] Verification timed out');
+            return { success: false, score: 0, error: 'Verification timed out' };
+        }
         console.error('[RECAPTCHA] Verification error:', err?.message);
         return { success: false, score: 0, error: 'Verification failed' };
     }

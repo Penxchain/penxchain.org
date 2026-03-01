@@ -16,7 +16,7 @@ async function waitlistRoutes(app) {
             await (0, middleware_1.requireActiveUser)(request, reply);
         }
         catch (err) {
-            reply.send(err);
+            return reply.send(err);
         }
     });
     server.get('/time', {
@@ -47,6 +47,13 @@ async function waitlistRoutes(app) {
             querystring: zod_1.default.object({}).passthrough(),
         }
     }, controller_1.getUserStatsHandler);
+    server.post('/notifications/read', {
+        schema: {
+            tags: ['Waitlist'],
+            summary: 'Mark all notifications as read',
+            querystring: zod_1.default.object({}).passthrough(),
+        }
+    }, controller_1.markNotificationsAsReadHandler);
     server.post('/bonus/claim', {
         schema: {
             body: schema_1.claimBonusSchema,

@@ -63,6 +63,161 @@ export async function getSystemStats() {
   }
 }
 
+export async function getAuthSecurityOverview(hours: number = 24) {
+  try {
+    const clampedHours = Math.min(168, Math.max(1, hours));
+    const now = new Date();
+    const since = new Date(now.getTime() - clampedHours * 60 * 60 * 1000);
+    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const [
+      activeRefreshSessions,
+      expiringIn24h,
+      revokedSinceWindow,
+      riskEventsTotal,
+      riskEventsBlocked,
+      actionGroups,
+      recentEvents,
+    ] = await Promise.all([
+      (db as any).refreshToken.count({
+        where: {
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+      }),
+      (db as any).refreshToken.count({
+        where: {
+          revokedAt: null,
+          expiresAt: { gt: now, lte: next24h },
+        },
+      }),
+      (db as any).refreshToken.count({
+        where: {
+          revokedAt: { not: null, gte: since },
+        },
+      }),
+      (db as any).authSecurityEvent.count({
+        where: { createdAt: { gte: since } },
+      }),
+      (db as any).authSecurityEvent.count({
+        where: {
+          createdAt: { gte: since },
+          blocked: true,
+        },
+      }),
+      (db as any).authSecurityEvent.groupBy({
+        by: ["action"],
+        where: { createdAt: { gte: since } },
+        _count: { _all: true },
+      }),
+      (db as any).authSecurityEvent.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        take: 500,
+        select: { reasons: true },
+      }),
+    ]);
+
+    const reasonCounts: Record<string, number> = {};
+    for (const evt of recentEvents) {
+      const reasons = Array.isArray(evt?.reasons) ? evt.reasons : [];
+      for (const reason of reasons) {
+        const key = String(reason);
+        reasonCounts[key] = (reasonCounts[key] || 0) + 1;
+      }
+    }
+
+    const topReasons = Object.entries(reasonCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([reason, count]) => ({ reason, count }));
+
+    const actionBreakdown = actionGroups.map((g: any) => ({
+      action: g.action,
+      count: g._count?._all || 0,
+    }));
+
+    return {
+      windowHours: clampedHours,
+      sessions: {
+        active: activeRefreshSessions,
+        expiringIn24h,
+        revokedInWindow: revokedSinceWindow,
+      },
+      risk: {
+        totalEvents: riskEventsTotal,
+        blockedEvents: riskEventsBlocked,
+        blockedRate:
+          riskEventsTotal > 0
+            ? Number(((riskEventsBlocked / riskEventsTotal) * 100).toFixed(2))
+            : 0,
+        topReasons,
+      },
+      actions: actionBreakdown,
+    };
+  } catch (err: any) {
+    console.error("[ADMIN] Database error in getAuthSecurityOverview:", err?.message);
+    throw new InternalServerError();
+  }
+}
+
+export async function getAuthSecurityEvents(params?: {
+  page?: number;
+  limit?: number;
+  action?: "signup" | "login" | "refresh";
+  blockedOnly?: boolean;
+}) {
+  try {
+    const page = Math.max(1, Number(params?.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(params?.limit || 20)));
+    const skip = (page - 1) * limit;
+    const action = params?.action;
+    const blockedOnly = Boolean(params?.blockedOnly);
+
+    const where: any = {};
+    if (action) where.action = action;
+    if (blockedOnly) where.blocked = true;
+
+    const [events, total] = await Promise.all([
+      (db as any).authSecurityEvent.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          action: true,
+          riskScore: true,
+          blocked: true,
+          reasons: true,
+          countryCode: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      }),
+      (db as any).authSecurityEvent.count({ where }),
+    ]);
+
+    return {
+      events,
+      total,
+      pages: Math.ceil(total / limit),
+      page,
+      limit,
+    };
+  } catch (err: any) {
+    console.error("[ADMIN] Database error in getAuthSecurityEvents:", err?.message);
+    throw new InternalServerError();
+  }
+}
+
 export async function getAllUsers(
   page: number = 1,
   limit: number = 20,
