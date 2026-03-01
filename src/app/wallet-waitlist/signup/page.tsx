@@ -104,11 +104,20 @@ function SignupContent() {
 
     // Execute reCAPTCHA
     let recaptchaToken: string | undefined = undefined;
+    if (!executeRecaptcha) {
+      setError("Security verification is temporarily unavailable. Please refresh and try again.");
+      setLoading(false);
+      return;
+    }
+
     if (executeRecaptcha) {
       try {
         recaptchaToken = await executeRecaptcha("signup");
       } catch (err) {
         console.error("[RECAPTCHA] execution failed:", err);
+        setError("Security verification failed to initialize. Please try again.");
+        setLoading(false);
+        return;
       }
     }
 

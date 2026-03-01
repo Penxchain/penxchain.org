@@ -16,6 +16,53 @@ interface RecaptchaResponse {
   'error-codes'?: string[];
 }
 
+function mapRecaptchaErrorCodes(errorCodes: string[] | undefined) {
+  if (!errorCodes || errorCodes.length === 0) {
+    return "Invalid verification token";
+  }
+
+  if (errorCodes.includes("invalid-input-secret")) {
+    return "Security verification secret is invalid";
+  }
+  if (errorCodes.includes("missing-input-secret")) {
+    return "Security verification secret is missing";
+  }
+  if (errorCodes.includes("invalid-input-response")) {
+    return "Invalid verification token";
+  }
+  if (errorCodes.includes("missing-input-response")) {
+    return "Verification token is missing";
+  }
+  if (errorCodes.includes("timeout-or-duplicate")) {
+    return "Verification token expired. Please try again.";
+  }
+  if (errorCodes.includes("bad-request")) {
+    return "Security verification request was malformed";
+  }
+
+  return "Invalid verification token";
+}
+
+function getAllowedRecaptchaHostnames() {
+  const candidates = [
+    env.FRONTEND_URL,
+    ...(env.FRONTEND_URLS ? env.FRONTEND_URLS.split(",") : []),
+  ]
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => s !== "*");
+
+  const hostnames = new Set<string>();
+  for (const candidate of candidates) {
+    try {
+      hostnames.add(new URL(candidate).hostname.toLowerCase());
+    } catch {
+      // ignore invalid entries
+    }
+  }
+  return hostnames;
+}
+
 /**
  * Verify a reCAPTCHA v3 token with Google
  * @param token - The reCAPTCHA token from the frontend
@@ -80,7 +127,11 @@ export async function verifyRecaptcha(
         return { success: true, score: 1.0 };
       }
       
-      return { success: false, score: 0, error: 'Invalid verification token' };
+      return {
+        success: false,
+        score: 0,
+        error: mapRecaptchaErrorCodes(data["error-codes"]),
+      };
     }
 
     // Verify the action matches what we expect
@@ -91,6 +142,18 @@ export async function verifyRecaptcha(
         return { success: true, score: 1.0 };
       }
       return { success: false, score: 0, error: 'Action mismatch' };
+    }
+
+    // Verify token hostname belongs to configured frontend(s)
+    const allowedHostnames = getAllowedRecaptchaHostnames();
+    if (data.hostname && allowedHostnames.size > 0) {
+      const tokenHostname = data.hostname.toLowerCase();
+      if (!allowedHostnames.has(tokenHostname)) {
+        console.warn(
+          `[RECAPTCHA] Hostname mismatch: token=${tokenHostname}, allowed=${Array.from(allowedHostnames).join(",")}`,
+        );
+        return { success: false, score: 0, error: "Verification domain mismatch" };
+      }
     }
 
     const score = data.score ?? 0;
