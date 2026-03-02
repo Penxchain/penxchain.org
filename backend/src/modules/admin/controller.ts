@@ -83,7 +83,7 @@ export async function verifyRecaptchaTokenHandler(
   const remoteIp = request.ip as string | undefined;
 
   const data = await verifyRecaptchaToken(token, action, remoteIp);
-  return reply.send({ success: true, ...data });
+  return reply.send(data);
 }
 
 const querySchema = z.object({
