@@ -49,7 +49,7 @@ type EventsResponse = {
   limit: number;
 };
 
-export default function AuthObservabilityPage() {
+function AuthObservabilityPage() {
   const { executeRecaptcha } = useGoogleReCaptcha();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
