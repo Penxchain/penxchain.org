@@ -44,14 +44,14 @@ const TELEMETRY = [
 function BlockNode({ code, label, x, y, delay }: BlockNodeProps) {
   return (
     <motion.div
-      className="absolute h-22 w-22 -translate-x-1/2 -translate-y-1/2 sm:h-24 sm:w-24"
+      className="absolute h-20 w-20 -translate-x-1/2 -translate-y-1/2 sm:h-24 sm:w-24"
       style={{ left: `${x}%`, top: `${y}%` }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay }}
     >
       <motion.div
-        className="relative h-full w-full overflow-hidden rounded-[30px] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(14,20,42,0.96),rgba(4,8,22,0.88))] shadow-[0_0_35px_rgba(37,71,208,0.22)] backdrop-blur-xl"
+        className="relative h-full w-full overflow-hidden rounded-[30px] border border-[#8bb4ff]/18 bg-[linear-gradient(180deg,rgba(16,26,58,0.96),rgba(5,10,28,0.9))] shadow-[0_0_35px_rgba(37,71,208,0.18)] backdrop-blur-xl"
         animate={{ y: [0, -6, 0] }}
         transition={{
           duration: 6.5,
@@ -61,7 +61,7 @@ function BlockNode({ code, label, x, y, delay }: BlockNodeProps) {
           ease: "easeInOut",
         }}
       >
-        <div className="absolute inset-x-3 top-3 flex items-center justify-between text-[8px] uppercase tracking-[0.36em] text-cyan-100/60">
+        <div className="absolute inset-x-3 top-3 flex items-center justify-between text-[8px] uppercase tracking-[0.36em] text-[#c8d8ff]/60">
           <span>blk</span>
           <span>ok</span>
         </div>
@@ -73,7 +73,7 @@ function BlockNode({ code, label, x, y, delay }: BlockNodeProps) {
             {label}
           </span>
         </div>
-        <div className="absolute inset-x-3 bottom-3 h-1 rounded-full bg-gradient-to-r from-cyan-300/0 via-cyan-300/75 to-cyan-300/0" />
+        <div className="absolute inset-x-3 bottom-3 h-1 rounded-full bg-gradient-to-r from-[#8bb4ff]/0 via-[#8bb4ff]/75 to-[#8bb4ff]/0" />
       </motion.div>
     </motion.div>
   );
@@ -88,20 +88,20 @@ export default function MissingBlockScene({
   onMineAttempt,
 }: MissingBlockSceneProps) {
   return (
-    <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,28,0.96),rgba(2,4,16,0.92))] p-4 shadow-[0_40px_120px_rgba(2,6,23,0.85)] sm:p-5">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_50%_65%,rgba(37,71,208,0.16),transparent_38%)]" />
+    <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,14,34,0.96),rgba(2,6,22,0.92))] p-4 shadow-[0_40px_120px_rgba(2,6,23,0.85)] sm:p-5">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(139,180,255,0.14),transparent_30%),radial-gradient(circle_at_50%_65%,rgba(37,71,208,0.18),transparent_38%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent_24%,transparent_76%,rgba(255,255,255,0.02))]" />
 
-      <div className="relative h-[420px] overflow-hidden rounded-[28px] border border-white/8 bg-black/20 p-4 sm:h-[470px] sm:p-5">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.08),transparent_46%)]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/35 to-transparent" />
+      <div className="relative h-[380px] overflow-hidden rounded-[28px] border border-white/8 bg-black/20 p-4 sm:h-[430px] lg:h-[470px] sm:p-5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(77,115,255,0.09),transparent_46%)]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8bb4ff]/35 to-transparent" />
         <div
           key={scanCycle}
-          className="nf-scan-line absolute inset-y-[-15%] left-[-24%] w-[24%] bg-gradient-to-r from-transparent via-cyan-200/24 to-transparent blur-2xl"
+          className="nf-scan-line absolute inset-y-[-15%] left-[-24%] w-[24%] bg-gradient-to-r from-transparent via-[#8bb4ff]/24 to-transparent blur-2xl"
         />
 
-        <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-cyan-200/15 bg-black/25 px-3 py-1.5 text-[10px] uppercase tracking-[0.34em] text-cyan-100/70 backdrop-blur-md">
-          <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.8)]" />
+        <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-[#8bb4ff]/15 bg-black/25 px-3 py-1.5 text-[10px] uppercase tracking-[0.34em] text-[#dbe7ff]/70 backdrop-blur-md">
+          <span className="h-2 w-2 rounded-full bg-[#8bb4ff] shadow-[0_0_12px_rgba(139,180,255,0.8)]" />
           404 route
         </div>
 
@@ -121,7 +121,7 @@ export default function MissingBlockScene({
               y1={segment.y1}
               x2={segment.x2}
               y2={segment.y2}
-              stroke="rgba(103, 232, 249, 0.26)"
+              stroke="rgba(139, 180, 255, 0.24)"
               strokeWidth="0.46"
               strokeLinecap="round"
               strokeDasharray="2 4"
@@ -138,7 +138,7 @@ export default function MissingBlockScene({
         </svg>
 
         <motion.div
-          className="absolute left-1/2 top-[38%] h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10 bg-cyan-300/5 blur-[1px]"
+          className="absolute left-1/2 top-[38%] h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#8bb4ff]/10 bg-[#2547D0]/10 blur-[1px]"
           animate={{ scale: [0.95, 1.08, 0.95], opacity: [0.24, 0.42, 0.24] }}
           transition={{
             duration: 4.8,
@@ -161,17 +161,17 @@ export default function MissingBlockScene({
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.98 }}
           className={cn(
-            "group absolute left-1/2 top-[38%] flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-[30px] border border-dashed border-cyan-300/45 bg-[linear-gradient(180deg,rgba(9,13,31,0.92),rgba(2,4,16,0.78))] shadow-[0_0_40px_rgba(56,189,248,0.15)] backdrop-blur-xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020410]",
+            "group absolute left-1/2 top-[38%] flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-[30px] border border-dashed border-[#8bb4ff]/45 bg-[linear-gradient(180deg,rgba(12,18,42,0.92),rgba(3,7,24,0.82))] shadow-[0_0_40px_rgba(37,71,208,0.18)] backdrop-blur-xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8bb4ff]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020410] sm:h-28 sm:w-28",
             isGlitching && "nf-glitch-active border-rose-300/50 shadow-[0_0_44px_rgba(244,114,182,0.18)]",
             isMining && "border-emerald-300/55 shadow-[0_0_44px_rgba(16,185,129,0.22)]",
           )}
         >
-          <div className="absolute inset-x-3 top-3 flex items-center justify-between text-[8px] uppercase tracking-[0.34em] text-cyan-100/65">
+          <div className="absolute inset-x-3 top-3 flex items-center justify-between text-[8px] uppercase tracking-[0.34em] text-[#dbe7ff]/65">
             <span>404</span>
             <span>null</span>
           </div>
 
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.12),transparent_60%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(77,115,255,0.16),transparent_60%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
           <AnimatePresence mode="wait">
             {isMining ? (
@@ -200,7 +200,7 @@ export default function MissingBlockScene({
                   </span>
                 </div>
                 <motion.div
-                  className="absolute inset-x-0 bottom-0 h-1.5 origin-left bg-gradient-to-r from-emerald-300 via-cyan-200 to-transparent"
+                  className="absolute inset-x-0 bottom-0 h-1.5 origin-left bg-gradient-to-r from-emerald-300 via-[#8bb4ff] to-transparent"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
                   transition={{ duration: 1.6, ease: "easeInOut" }}
@@ -232,7 +232,7 @@ export default function MissingBlockScene({
                   animate={{ opacity: [0, 0.9, 0], x: [-4, 8, -2], y: [-2, 4, -3] }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.42, ease: "easeInOut" }}
-                  className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-space text-3xl font-bold tracking-[0.2em] text-cyan-200"
+                  className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-space text-3xl font-bold tracking-[0.2em] text-[#8bb4ff]"
                 >
                   404
                 </motion.span>
@@ -249,7 +249,7 @@ export default function MissingBlockScene({
             ) : null}
           </AnimatePresence>
 
-          <div className="absolute inset-x-4 bottom-3 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent opacity-80" />
+          <div className="absolute inset-x-4 bottom-3 h-px bg-gradient-to-r from-transparent via-[#8bb4ff]/70 to-transparent opacity-80" />
         </motion.button>
 
         <div className="absolute inset-x-4 bottom-4 rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4 backdrop-blur-xl">

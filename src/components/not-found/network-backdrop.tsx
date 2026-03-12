@@ -41,9 +41,9 @@ const FLOATING_GLYPHS = [
 export default function NetworkBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,71,208,0.24),transparent_34%),radial-gradient(circle_at_80%_18%,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_50%_80%,rgba(76,29,149,0.2),transparent_30%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,71,208,0.26),transparent_34%),radial-gradient(circle_at_80%_18%,rgba(139,180,255,0.14),transparent_28%),radial-gradient(circle_at_50%_80%,rgba(20,36,95,0.28),transparent_30%)]" />
       <div className="nf-network-grid absolute inset-0 opacity-65" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,4,16,0.26),rgba(2,4,16,0.74))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,7,20,0.2),rgba(3,7,20,0.78))]" />
 
       <svg
         viewBox="0 0 100 100"
@@ -62,7 +62,7 @@ export default function NetworkBackdrop() {
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke="rgba(125, 211, 252, 0.22)"
+              stroke="rgba(139, 180, 255, 0.22)"
               strokeWidth="0.22"
               strokeLinecap="round"
               initial={{ pathLength: 0.2, opacity: 0.16 }}
@@ -82,7 +82,7 @@ export default function NetworkBackdrop() {
       {NODES.map((node, index) => (
         <motion.div
           key={`${node.x}-${node.y}`}
-          className="absolute rounded-full bg-cyan-200/90 shadow-[0_0_18px_rgba(34,211,238,0.55)]"
+          className="absolute rounded-full bg-[#8bb4ff]/90 shadow-[0_0_18px_rgba(37,71,208,0.42)]"
           style={{
             left: `${node.x}%`,
             top: `${node.y}%`,
@@ -102,14 +102,14 @@ export default function NetworkBackdrop() {
             ease: "easeInOut",
           }}
         >
-          <span className="absolute inset-[-12px] rounded-full bg-cyan-300/20 blur-xl" />
+          <span className="absolute inset-[-12px] rounded-full bg-[#2547D0]/26 blur-xl" />
         </motion.div>
       ))}
 
       {FLOATING_GLYPHS.map((glyph, index) => (
         <motion.div
           key={glyph.label}
-          className="absolute rounded-full border border-white/8 bg-black/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.32em] text-cyan-100/55 backdrop-blur-md"
+          className="absolute hidden rounded-full border border-white/8 bg-black/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.32em] text-[#dbe7ff]/55 backdrop-blur-md sm:block"
           style={{ left: glyph.x, top: glyph.y }}
           animate={{ y: [0, -8, 0], opacity: [0.2, 0.72, 0.2] }}
           transition={{

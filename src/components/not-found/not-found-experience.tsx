@@ -45,6 +45,8 @@ const SCAN_PHASES = [
   },
 ] as const;
 
+const FEATURED_BLOG_POSTS = getFeaturedBlogPosts(3);
+
 type TimerListRef = MutableRefObject<number[]>;
 type TimerRef = MutableRefObject<number | null>;
 
@@ -157,7 +159,7 @@ export default function NotFoundExperience() {
   const fingerprint = getRouteFingerprint(pathname);
   const compactPath = getCompactPath(pathname);
   const activePhase = SCAN_PHASES[scanIndex];
-  const featuredPosts = getFeaturedBlogPosts(3);
+  const featuredPosts = FEATURED_BLOG_POSTS;
   const diagnosticCards = [
     {
       label: "Page status",
@@ -180,13 +182,13 @@ export default function NotFoundExperience() {
   ] as const;
 
   return (
-    <main className="relative isolate min-h-svh overflow-hidden bg-[#020410] pt-28 pb-16 md:pt-32">
+    <main className="relative isolate min-h-svh overflow-hidden bg-[#030714] pt-24 pb-14 sm:pt-28 md:pt-32">
       <NetworkBackdrop />
 
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/25 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8bb4ff]/25 to-transparent" />
 
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-6">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-center">
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-5 sm:px-6 lg:px-8">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,540px)] lg:items-center xl:gap-12">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -194,8 +196,8 @@ export default function NotFoundExperience() {
             className="max-w-2xl"
           >
             <div className="inline-grid gap-3 text-left">
-              <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.38em] text-cyan-100/56">
-                <span className="h-px w-10 bg-gradient-to-r from-cyan-300/85 to-transparent" />
+              <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.38em] text-[#c8d8ff]/56">
+                <span className="h-px w-10 bg-gradient-to-r from-[#8bb4ff]/85 to-transparent" />
                 404 page not found
               </div>
               <div className="grid max-w-max gap-2 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] px-4 py-3 backdrop-blur-xl">
@@ -211,16 +213,16 @@ export default function NotFoundExperience() {
                   <span className="text-[10px] uppercase tracking-[0.32em] text-slate-400/76">
                     fingerprint
                   </span>
-                  <span className="font-mono text-sm text-cyan-100/86">
+                  <span className="font-mono text-sm text-[#c8d8ff]/86">
                     {fingerprint}
                   </span>
                 </div>
               </div>
             </div>
 
-            <h1 className="mt-6 font-space text-5xl font-bold leading-[0.96] text-white sm:text-6xl md:text-7xl">
+            <h1 className="mt-6 font-space text-4xl font-bold leading-[0.96] text-white sm:text-5xl lg:text-6xl xl:text-7xl">
               404{" "}
-              <span className="bg-gradient-to-r from-white via-cyan-200 to-[#8fb0ff] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-white via-[#c8d8ff] to-[#4d73ff] bg-clip-text text-transparent">
                 Page Not Found
               </span>
             </h1>
@@ -234,10 +236,10 @@ export default function NotFoundExperience() {
               On PENXCHAIN, it looks like a missing block in the chain.
             </p>
 
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <Link
                 href="/"
-                className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#2547D0] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(37,71,208,0.35)] transition-all duration-300 hover:bg-[#1e3a8a] hover:shadow-[0_22px_56px_rgba(37,71,208,0.42)]"
+                className="group inline-flex items-center justify-center gap-2 rounded-full border border-[#8bb4ff]/28 bg-[linear-gradient(135deg,#14245f_0%,#2547D0_56%,#4d73ff_100%)] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(37,71,208,0.32)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_22px_56px_rgba(77,115,255,0.36)]"
               >
                 <ArrowLeft size={18} className="transition-transform duration-300 group-hover:-translate-x-0.5" />
                 Go Home
@@ -245,7 +247,7 @@ export default function NotFoundExperience() {
 
               <Link
                 href="/docs"
-                className="group inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/4 px-6 py-3.5 text-sm font-semibold text-white/88 backdrop-blur-md transition-all duration-300 hover:border-cyan-200/30 hover:bg-white/8 hover:text-white"
+                className="group inline-flex items-center justify-center gap-2 rounded-full border border-[#8bb4ff]/16 bg-white/4 px-6 py-3.5 text-sm font-semibold text-white/88 backdrop-blur-md transition-all duration-300 hover:border-[#8bb4ff]/28 hover:bg-white/8 hover:text-white"
               >
                 <BookOpenText size={18} className="transition-transform duration-300 group-hover:-translate-y-0.5" />
                 Explore Documentation
@@ -256,7 +258,7 @@ export default function NotFoundExperience() {
               <button
                 type="button"
                 onClick={playScanSequence}
-                className="inline-flex items-center gap-2 rounded-full border border-cyan-200/14 bg-cyan-200/5 px-4 py-2.5 text-sm font-medium text-cyan-100/82 backdrop-blur-md transition-all duration-300 hover:border-cyan-200/28 hover:bg-cyan-200/10 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-[#8bb4ff]/16 bg-[#2547D0]/10 px-4 py-2.5 text-sm font-medium text-[#dbe7ff]/84 backdrop-blur-md transition-all duration-300 hover:border-[#8bb4ff]/30 hover:bg-[#2547D0]/16 hover:text-white"
               >
                 <Radar size={16} />
                 Re-scan Network
@@ -275,7 +277,7 @@ export default function NotFoundExperience() {
             <div className="mt-8 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 backdrop-blur-xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.34em] text-cyan-100/62">
+                  <p className="text-[10px] uppercase tracking-[0.34em] text-[#c8d8ff]/62">
                     Page Status
                   </p>
                   <p className="mt-2 font-space text-2xl font-bold text-white">
@@ -294,7 +296,7 @@ export default function NotFoundExperience() {
 
               <div className="mt-4 h-1.5 rounded-full bg-white/6">
                 <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-[#2547D0] to-fuchsia-400"
+                  className="h-full rounded-full bg-gradient-to-r from-[#8bb4ff] via-[#2547D0] to-[#16235c]"
                   initial={{ width: "25%" }}
                   animate={{
                     width: `${((scanIndex + 1) / SCAN_PHASES.length) * 100}%`,
@@ -330,7 +332,7 @@ export default function NotFoundExperience() {
             <ArchiveOracle posts={featuredPosts} />
           </motion.div>
 
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-1">
             {diagnosticCards.map((card, index) => {
               const Icon = card.icon;
 
@@ -343,7 +345,7 @@ export default function NotFoundExperience() {
                   className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5 backdrop-blur-xl"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200/15 bg-cyan-200/8 text-cyan-100/82">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#8bb4ff]/16 bg-[#2547D0]/10 text-[#dbe7ff]/84">
                       <Icon size={18} />
                     </div>
                     <div>
