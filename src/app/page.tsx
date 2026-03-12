@@ -7,7 +7,7 @@ import Ecosystem from "@/components/ecosystem";
 import Tokenomics from "@/components/tokenomics"; // New Import
 import Roadmap from "@/components/roadmap";
 import Team from "@/components/team";
-import Waitlist from "@/components/waitlist";
+import CommunityUpdates from "@/components/community-updates";
 
 export default function Home() {
   return (
@@ -20,7 +20,7 @@ export default function Home() {
       <Roadmap />
       <Team />
       <Tokenomics />
-      <Waitlist />
+      <CommunityUpdates />
     </main>
   );
 }

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { Loader2, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 
-export default function Waitlist() {
+export default function CommunityUpdates() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -44,7 +44,7 @@ export default function Waitlist() {
 
   return (
     <section
-      id="waitlist"
+      id="updates"
       className="relative w-full py-32 bg-[#020410] overflow-hidden"
     >
       {/* Background Ambient Glow */}

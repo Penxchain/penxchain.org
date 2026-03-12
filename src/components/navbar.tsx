@@ -23,7 +23,7 @@ const NAV_ITEMS = [
   { label: "Documentation", href: "/docs", icon: FileText },
   { label: "Roadmap", href: "/#roadmap", icon: Map },
   { label: "Tokenomics", href: "/#tokenomics", icon: DollarSign },
-  { label: "Waitlist", href: "/#waitlist", icon: Clock },
+  { label: "Updates", href: "/#updates", icon: Clock },
 ];
 
 type NavbarProps = {
