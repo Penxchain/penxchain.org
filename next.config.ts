@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
+const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
+const waitlistAccessGateEnabled = ENABLED_VALUES.has(
+  (process.env.NEXT_PUBLIC_WAITLIST_ACCESS_GATE || "").trim().toLowerCase(),
+);
+const gatedWaitlistRoutes = [
+  "login",
+  "signup",
+  "dashboard",
+  "profile",
+  "leaderboard",
+];
+
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
   images: {
     qualities: [100],
@@ -12,7 +23,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   async redirects() {
-    return [
+    const redirects = [
       {
         source: "/wallet_waitlist",
         destination: "/wallet-waitlist",
@@ -24,6 +35,18 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
     ];
+
+    if (waitlistAccessGateEnabled) {
+      redirects.unshift(
+        ...gatedWaitlistRoutes.map((route) => ({
+          source: `/wallet-waitlist/${route}`,
+          destination: `/wallet-waitlist/access-update?from=/wallet-waitlist/${route}`,
+          permanent: false,
+        })),
+      );
+    }
+
+    return redirects;
   },
 };
 
