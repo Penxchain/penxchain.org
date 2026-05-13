@@ -18,7 +18,7 @@ export default function LayoutWrapper({
 
   // Pages where we still hide everything (docs and download pages)
   const hideEverything =
-    pathname.startsWith("/docs") || pathname.startsWith("/download") || pathname.startsWith("/wallet-waitlist") || pathname.startsWith("/admin");
+    pathname.startsWith("/docs") || pathname.startsWith("/download") || pathname.startsWith("/wallet-waitlist") || pathname.startsWith("/admin") || pathname.startsWith("/landing-test");
 
   // Hide navbar only for individual blog posts (paths like /blog/slug)
   // and for the marketplace coming-soon page. The general /blog listing
